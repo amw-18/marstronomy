@@ -3,7 +3,8 @@
     "name": "Olympus Mons",
     "latitude_deg": 18.65,
     "longitude_east_deg": 226.2,
-    "longitude_west_deg": 133.8
+    "longitude_west_deg": 133.8,
+    "radius_km": 3389.5
   },
   "observation_utc": "2026-04-04T00:00:00Z",
   "catalog_schema_hint": [

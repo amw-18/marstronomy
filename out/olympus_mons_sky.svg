@@ -6,7 +6,7 @@
 </defs>
 <rect width="1200" height="1200" fill="url(#bg)"/>
 <text x="600.0" y="72" fill="#eef4ff" font-size="28" font-family="Menlo, Consolas, monospace" text-anchor="middle">Mars Sky POC: Olympus Mons</text>
-<text x="600.0" y="106" fill="#a9b7d9" font-size="18" font-family="Menlo, Consolas, monospace" text-anchor="middle">2026-04-04T00:00:00Z UTC | lat 18.65 | lonE 226.20</text>
+<text x="600.0" y="106" fill="#a9b7d9" font-size="18" font-family="Menlo, Consolas, monospace" text-anchor="middle">2026-04-04T00:00:00Z | lat 18.65 | lonE 226.20</text>
 <circle cx="600.0" cy="600.0" r="500.0" fill="none" stroke="#5d6b8c" stroke-width="2"/>
 <circle cx="600.0" cy="600.0" r="416.67" fill="none" stroke="#24314c" stroke-width="1"/>
 <text x="608.0" y="177.33" fill="#5f7198" font-size="14" font-family="Menlo, Consolas, monospace">15°</text>
