@@ -1,0 +1,20 @@
+{
+  "name": "mars-observer-viewer",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "sync-data": "python3 ../scripts/export_web_catalog.py",
+    "dev": "npm run sync-data && vite",
+    "build": "npm run sync-data && vite build",
+    "preview": "vite preview",
+    "test": "npm run sync-data && vitest run"
+  },
+  "devDependencies": {
+    "@types/node": "^22.9.0",
+    "jsdom": "^25.0.0",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.10",
+    "vitest": "^2.1.4"
+  }
+}
