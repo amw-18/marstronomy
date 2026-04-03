@@ -37,6 +37,10 @@ By default the scene timeline starts at `2026-04-06T00:00:00Z`, which gives a mo
 python3 -m unittest discover -s tests -v
 ```
 
+## Docs
+
+- [Mars constellation system](docs/mars-constellation-system.md)
+
 ## Run The Browser Viewer
 
 ```bash
