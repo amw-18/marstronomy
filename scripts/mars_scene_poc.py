@@ -10,15 +10,15 @@ try:
     from mars_sky_core import (
         CATALOG_DEFAULT,
         DEFAULT_KEYFRAME_COUNT,
+        DEFAULT_SCENE_START_UTC,
         DEFAULT_TIMELINE_DURATION_SOLS,
         DEFAULT_TIMELINE_FRAME_COUNT,
-        DEFAULT_UTC,
         OLYMPUS_MONS_LAT_DEG,
         OLYMPUS_MONS_LON_EAST_DEG,
         Site,
         approximation_notes,
-        build_keyframe_indices,
         build_scene_timeline,
+        build_visibility_aware_keyframe_indices,
         build_visible_stars,
         datetime_to_jd_tt,
         default_site,
@@ -35,15 +35,15 @@ except ImportError:
     from scripts.mars_sky_core import (
         CATALOG_DEFAULT,
         DEFAULT_KEYFRAME_COUNT,
+        DEFAULT_SCENE_START_UTC,
         DEFAULT_TIMELINE_DURATION_SOLS,
         DEFAULT_TIMELINE_FRAME_COUNT,
-        DEFAULT_UTC,
         OLYMPUS_MONS_LAT_DEG,
         OLYMPUS_MONS_LON_EAST_DEG,
         Site,
         approximation_notes,
-        build_keyframe_indices,
         build_scene_timeline,
+        build_visibility_aware_keyframe_indices,
         build_visible_stars,
         datetime_to_jd_tt,
         default_site,
@@ -69,8 +69,8 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--start-utc",
-        default=DEFAULT_UTC,
-        help="Timeline start UTC in ISO-8601 form, e.g. 2026-04-04T00:00:00Z.",
+        default=DEFAULT_SCENE_START_UTC,
+        help="Timeline start UTC in ISO-8601 form, e.g. 2026-04-06T00:00:00Z.",
     )
     parser.add_argument(
         "--lat",
@@ -127,6 +127,8 @@ def build_timeline_payload(
     duration_sols: float,
     frame_count: int,
     frames: list,
+    visibility_summary: dict,
+    warnings: list,
 ) -> dict:
     return {
         "site": site_payload(site),
@@ -136,6 +138,8 @@ def build_timeline_payload(
             "frame_count": frame_count,
         },
         "approximation_notes": approximation_notes(),
+        "visibility_summary": visibility_summary,
+        "warnings": warnings,
         "frames": frames,
     }
 
@@ -197,12 +201,18 @@ def main() -> int:
         duration_sols=args.duration_sols,
         frame_count=args.frame_count,
     )
+    keyframe_indices, visibility_summary, warnings = build_visibility_aware_keyframe_indices(
+        frames=frames,
+        keyframe_count=args.keyframe_count,
+    )
     payload = build_timeline_payload(
         site=site,
         start_utc_text=utc_isoformat(start_utc),
         duration_sols=args.duration_sols,
         frame_count=args.frame_count,
         frames=frames,
+        visibility_summary=visibility_summary,
+        warnings=warnings,
     )
     payload["catalog_schema_hint"] = sample_keys
     payload["catalog_records"] = record_count
@@ -210,7 +220,6 @@ def main() -> int:
 
     write_json(args.out_timeline_json, payload)
 
-    keyframe_indices = build_keyframe_indices(args.frame_count, args.keyframe_count)
     keyframe_paths = render_keyframes(
         out_dir=args.out_keyframes_dir,
         keyframe_indices=keyframe_indices,
@@ -227,6 +236,7 @@ def main() -> int:
     print(f"Keyframes: {len(keyframe_paths)}")
     print(f"Output JSON: {args.out_timeline_json}")
     print(f"Output keyframes dir: {args.out_keyframes_dir}")
+    print(f"Warnings: {len(warnings)}")
     if frames:
         print("First frame bodies:")
         print("  " + summarize_frame_bodies(frames[0]))

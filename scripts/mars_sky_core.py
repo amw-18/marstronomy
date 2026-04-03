@@ -13,6 +13,7 @@ from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
 CATALOG_DEFAULT = "bsc5.json"
 DEFAULT_UTC = "2026-04-04T00:00:00Z"
+DEFAULT_SCENE_START_UTC = "2026-04-06T00:00:00Z"
 OLYMPUS_MONS_LAT_DEG = 18.65
 OLYMPUS_MONS_LON_EAST_DEG = 226.2
 
@@ -52,6 +53,45 @@ DEFAULT_TIMELINE_DURATION_SOLS = 2.0
 SUN_COLOR = "#ffd54a"
 PHOBOS_COLOR = "#ddd7cb"
 DEIMOS_COLOR = "#aeb9d1"
+MOON_DARK_COLOR = "#2e333d"
+MOON_INSET_PANEL_FILL = "#0b1020"
+MOON_INSET_PANEL_STROKE = "#42506d"
+PHOBOS_SHAPE_ID = "phobos-potato-v1"
+DEIMOS_SHAPE_ID = "deimos-potato-v1"
+
+PHOBOS_SILHOUETTE_POINTS: Sequence[Tuple[float, float]] = (
+    (-0.96, -0.14),
+    (-0.90, -0.48),
+    (-0.66, -0.80),
+    (-0.24, -0.96),
+    (0.16, -0.88),
+    (0.60, -0.74),
+    (0.93, -0.32),
+    (0.98, 0.10),
+    (0.74, 0.50),
+    (0.33, 0.80),
+    (-0.12, 0.96),
+    (-0.54, 0.88),
+    (-0.86, 0.56),
+    (-1.00, 0.18),
+)
+
+DEIMOS_SILHOUETTE_POINTS: Sequence[Tuple[float, float]] = (
+    (-0.94, -0.08),
+    (-0.82, -0.46),
+    (-0.48, -0.78),
+    (-0.06, -0.90),
+    (0.34, -0.82),
+    (0.74, -0.58),
+    (0.92, -0.16),
+    (0.88, 0.24),
+    (0.60, 0.60),
+    (0.20, 0.82),
+    (-0.22, 0.86),
+    (-0.60, 0.72),
+    (-0.86, 0.40),
+    (-0.96, 0.04),
+)
 
 LEAP_SECOND_TABLE: Sequence[Tuple[str, float]] = (
     ("1972-01-01T00:00:00Z", 42.184),
@@ -149,10 +189,41 @@ class MoonModel:
     phase_at_j2000_deg: float
     color: str
     symbol_size_px: float
+    triaxial_axes_km: Tuple[float, float, float]
+    shape_id: str
+    silhouette_points: Sequence[Tuple[float, float]]
 
     @property
     def relative_rate_deg_per_day(self) -> float:
         return (360.0 / self.orbital_period_days) - MARS_PM_RATE_DEG_PER_DAY
+
+    @property
+    def max_diameter_km(self) -> float:
+        return max(self.triaxial_axes_km)
+
+    @property
+    def major_to_minor_ratio(self) -> float:
+        major, minor = max(self.triaxial_axes_km), min(self.triaxial_axes_km[:2])
+        return major / minor if minor else 1.0
+
+    @property
+    def face_on_axes_km(self) -> Tuple[float, float]:
+        # Axis order: Mars-facing, along-track, north-south.
+        return (self.triaxial_axes_km[1], self.triaxial_axes_km[2])
+
+    @property
+    def face_on_max_diameter_km(self) -> float:
+        return max(self.face_on_axes_km)
+
+
+@dataclass(frozen=True)
+class MoonPhaseGeometry:
+    phase_angle_deg: float
+    illuminated_fraction: float
+    bright_angle_deg: float
+    terminator_angle_deg: float
+    apparent_diameter_arcmin: float
+    resolved_in_main_view: bool
 
 
 @dataclass(frozen=True)
@@ -166,6 +237,13 @@ class MovingBody:
     color: str
     distance_km: Optional[float] = None
     distance_au: Optional[float] = None
+    phase_angle_deg: Optional[float] = None
+    illuminated_fraction: Optional[float] = None
+    terminator_angle_deg: Optional[float] = None
+    apparent_diameter_arcmin: Optional[float] = None
+    resolved_in_main_view: Optional[bool] = None
+    shape_id: Optional[str] = None
+    bright_angle_deg: Optional[float] = None
 
 
 PHOBOS_MODEL = MoonModel(
@@ -176,6 +254,9 @@ PHOBOS_MODEL = MoonModel(
     phase_at_j2000_deg=189.7,
     color=PHOBOS_COLOR,
     symbol_size_px=8.5,
+    triaxial_axes_km=(27.0, 22.0, 18.0),
+    shape_id=PHOBOS_SHAPE_ID,
+    silhouette_points=PHOBOS_SILHOUETTE_POINTS,
 )
 
 DEIMOS_MODEL = MoonModel(
@@ -186,7 +267,15 @@ DEIMOS_MODEL = MoonModel(
     phase_at_j2000_deg=205.0,
     color=DEIMOS_COLOR,
     symbol_size_px=5.4,
+    triaxial_axes_km=(15.0, 12.0, 11.0),
+    shape_id=DEIMOS_SHAPE_ID,
+    silhouette_points=DEIMOS_SILHOUETTE_POINTS,
 )
+
+MOON_MODELS: Dict[str, MoonModel] = {
+    PHOBOS_MODEL.kind: PHOBOS_MODEL,
+    DEIMOS_MODEL.kind: DEIMOS_MODEL,
+}
 
 
 def default_site() -> Site:
@@ -415,6 +504,94 @@ def inertial_to_body(
         dot(vector_inertial, x_body),
         dot(vector_inertial, y_body),
         dot(vector_inertial, z_body),
+    )
+
+
+def project_onto_plane(
+    vector: Sequence[float], plane_normal_unit: Sequence[float]
+) -> Tuple[float, float, float]:
+    normal_scale = dot(vector, plane_normal_unit)
+    return (
+        vector[0] - (normal_scale * plane_normal_unit[0]),
+        vector[1] - (normal_scale * plane_normal_unit[1]),
+        vector[2] - (normal_scale * plane_normal_unit[2]),
+    )
+
+
+def clamp_unit(value: float) -> float:
+    return max(-1.0, min(1.0, value))
+
+
+def moon_local_basis(
+    position_body_km: Sequence[float],
+) -> Tuple[Tuple[float, float, float], Tuple[float, float, float], Tuple[float, float, float]]:
+    # Synchronous rotation approximation:
+    # local +z points toward Mars, local +y tracks Mars north, local +x completes
+    # the face-on moon plane for a Mars-surface observer.
+    local_z = normalize_vector(scale_vector(position_body_km, -1.0))
+    north_ref = (0.0, 0.0, 1.0)
+    local_x = normalize_vector(cross(north_ref, local_z))
+    local_y = normalize_vector(cross(local_z, local_x))
+    return local_x, local_y, local_z
+
+
+def body_to_local(
+    vector_body: Sequence[float],
+    local_x: Sequence[float],
+    local_y: Sequence[float],
+    local_z: Sequence[float],
+) -> Tuple[float, float, float]:
+    return (
+        dot(vector_body, local_x),
+        dot(vector_body, local_y),
+        dot(vector_body, local_z),
+    )
+
+
+def phase_geometry_from_local_vectors(
+    observer_from_moon_local: Sequence[float],
+    sun_from_moon_local: Sequence[float],
+    apparent_diameter_arcmin: float,
+    symbol_size_px: float,
+) -> MoonPhaseGeometry:
+    observer_unit = normalize_vector(observer_from_moon_local)
+    sun_unit = normalize_vector(sun_from_moon_local)
+
+    phase_angle_deg = math.degrees(math.acos(clamp_unit(dot(observer_unit, sun_unit))))
+    illuminated_fraction = max(
+        0.0,
+        min(1.0, 0.5 * (1.0 + math.cos(deg_to_rad(phase_angle_deg)))),
+    )
+
+    up_ref = (0.0, 1.0, 0.0)
+    screen_up = project_onto_plane(up_ref, observer_unit)
+    if vector_norm(screen_up) < 1e-8:
+        screen_up = project_onto_plane((1.0, 0.0, 0.0), observer_unit)
+    screen_up = normalize_vector(screen_up)
+    screen_right = normalize_vector(cross(screen_up, observer_unit))
+
+    sun_proj = project_onto_plane(sun_unit, observer_unit)
+    if vector_norm(sun_proj) < 1e-8:
+        bright_angle_deg = 90.0
+    else:
+        sun_proj = normalize_vector(sun_proj)
+        bright_angle_deg = wrap_degrees(
+            math.degrees(
+                math.atan2(dot(sun_proj, screen_right), dot(sun_proj, screen_up))
+            )
+        )
+
+    terminator_angle_deg = wrap_degrees(bright_angle_deg + 90.0)
+    resolved_in_main_view = (
+        symbol_size_px >= 7.0 and apparent_diameter_arcmin >= 6.0
+    )
+    return MoonPhaseGeometry(
+        phase_angle_deg=phase_angle_deg,
+        illuminated_fraction=illuminated_fraction,
+        bright_angle_deg=bright_angle_deg,
+        terminator_angle_deg=terminator_angle_deg,
+        apparent_diameter_arcmin=apparent_diameter_arcmin,
+        resolved_in_main_view=resolved_in_main_view,
     )
 
 
@@ -759,19 +936,70 @@ def moon_body_position(model: MoonModel, jd_tt: float) -> Tuple[Tuple[float, flo
     return position, lon_east_deg
 
 
+def apparent_diameter_arcmin(diameter_km: float, distance_km: float) -> float:
+    if distance_km <= 0.0:
+        return 0.0
+    half_angle_rad = math.atan((0.5 * diameter_km) / distance_km)
+    return math.degrees(2.0 * half_angle_rad) * 60.0
+
+
+def compute_moon_phase_geometry(
+    model: MoonModel,
+    position_body_km: Sequence[float],
+    observer_position_body_km: Sequence[float],
+    sun_direction_body: Sequence[float],
+) -> MoonPhaseGeometry:
+    observer_from_moon_body = subtract_vectors(observer_position_body_km, position_body_km)
+    local_x, local_y, local_z = moon_local_basis(position_body_km)
+    observer_from_moon_local = body_to_local(
+        observer_from_moon_body,
+        local_x,
+        local_y,
+        local_z,
+    )
+    sun_from_moon_local = body_to_local(
+        sun_direction_body,
+        local_x,
+        local_y,
+        local_z,
+    )
+    apparent_arcmin = apparent_diameter_arcmin(
+        model.face_on_max_diameter_km,
+        vector_norm(observer_from_moon_body),
+    )
+    return phase_geometry_from_local_vectors(
+        observer_from_moon_local=observer_from_moon_local,
+        sun_from_moon_local=sun_from_moon_local,
+        apparent_diameter_arcmin=apparent_arcmin,
+        symbol_size_px=model.symbol_size_px,
+    )
+
+
 def build_moon_body(
     model: MoonModel,
     jd_tt: float,
     lat_deg: float,
     lon_east_deg: float,
+    sun_direction_body: Sequence[float],
     observer_radius_km: float = MARS_MEAN_RADIUS_KM,
 ) -> MovingBody:
     position_body, _ = moon_body_position(model, jd_tt)
+    observer_position = observer_position_body(
+        lat_deg,
+        lon_east_deg,
+        observer_radius_km,
+    )
     alt_deg, az_deg, distance_km = topocentric_alt_az_from_position(
         position_body,
         lat_deg,
         lon_east_deg,
         observer_radius_km=observer_radius_km,
+    )
+    phase_geometry = compute_moon_phase_geometry(
+        model=model,
+        position_body_km=position_body,
+        observer_position_body_km=observer_position,
+        sun_direction_body=sun_direction_body,
     )
     return MovingBody(
         kind=model.kind,
@@ -782,6 +1010,13 @@ def build_moon_body(
         symbol_size_px=model.symbol_size_px,
         color=model.color,
         distance_km=distance_km,
+        phase_angle_deg=phase_geometry.phase_angle_deg,
+        illuminated_fraction=phase_geometry.illuminated_fraction,
+        terminator_angle_deg=phase_geometry.terminator_angle_deg,
+        apparent_diameter_arcmin=phase_geometry.apparent_diameter_arcmin,
+        resolved_in_main_view=phase_geometry.resolved_in_main_view,
+        shape_id=model.shape_id,
+        bright_angle_deg=phase_geometry.bright_angle_deg,
     )
 
 
@@ -821,6 +1056,18 @@ def moving_body_to_dict(body: MovingBody) -> Dict[str, Any]:
         payload["distance_km"] = round(body.distance_km, 3)
     if body.distance_au is not None:
         payload["distance_au"] = round(body.distance_au, 6)
+    if body.phase_angle_deg is not None:
+        payload["phase_angle_deg"] = round(body.phase_angle_deg, 6)
+    if body.illuminated_fraction is not None:
+        payload["illuminated_fraction"] = round(body.illuminated_fraction, 6)
+    if body.terminator_angle_deg is not None:
+        payload["terminator_angle_deg"] = round(body.terminator_angle_deg, 6)
+    if body.apparent_diameter_arcmin is not None:
+        payload["apparent_diameter_arcmin"] = round(body.apparent_diameter_arcmin, 6)
+    if body.resolved_in_main_view is not None:
+        payload["resolved_in_main_view"] = body.resolved_in_main_view
+    if body.shape_id is not None:
+        payload["shape_id"] = body.shape_id
     return payload
 
 
@@ -830,12 +1077,14 @@ def scene_bodies_for_time(
 ) -> Tuple[MarsSolarData, MovingBody, MovingBody, MovingBody]:
     jd_tt = datetime_to_jd_tt(dt_utc)
     solar_data = mars_solar_data(jd_tt, site.longitude_east_deg)
+    sun_direction = sun_direction_body(solar_data)
     sun = build_sun_body(solar_data, site.latitude_deg, site.longitude_east_deg)
     phobos = build_moon_body(
         PHOBOS_MODEL,
         jd_tt,
         site.latitude_deg,
         site.longitude_east_deg,
+        sun_direction_body=sun_direction,
         observer_radius_km=site.radius_km,
     )
     deimos = build_moon_body(
@@ -843,6 +1092,7 @@ def scene_bodies_for_time(
         jd_tt,
         site.latitude_deg,
         site.longitude_east_deg,
+        sun_direction_body=sun_direction,
         observer_radius_km=site.radius_km,
     )
     return solar_data, sun, phobos, deimos
@@ -914,12 +1164,99 @@ def build_keyframe_indices(frame_count: int, keyframe_count: int) -> List[int]:
     return indices
 
 
+def body_by_kind(frame: Dict[str, Any], kind: str) -> Dict[str, Any]:
+    for body in frame["moving_bodies"]:
+        if body["kind"] == kind:
+            return body
+    raise KeyError(f"Body kind {kind!r} was not found in frame.")
+
+
+def build_visibility_summary(
+    frames: Sequence[Dict[str, Any]],
+    keyframe_indices: Sequence[int],
+    body_kinds: Sequence[str] = ("phobos", "deimos"),
+) -> Tuple[Dict[str, Dict[str, Any]], List[str]]:
+    summary: Dict[str, Dict[str, Any]] = {}
+    warnings: List[str] = []
+
+    for kind in body_kinds:
+        visible_indices = [
+            index for index, frame in enumerate(frames) if body_by_kind(frame, kind)["visible"]
+        ]
+        keyframe_visible_indices = [
+            index for index in keyframe_indices if body_by_kind(frames[index], kind)["visible"]
+        ]
+        max_alt_body = max((body_by_kind(frame, kind) for frame in frames), key=lambda body: body["alt_deg"])
+        summary[kind] = {
+            "ever_visible": bool(visible_indices),
+            "visible_frame_count": len(visible_indices),
+            "keyframe_visible_count": len(keyframe_visible_indices),
+            "max_alt_deg": round(max_alt_body["alt_deg"], 6),
+            "first_visible_utc": frames[visible_indices[0]]["utc"] if visible_indices else None,
+            "last_visible_utc": frames[visible_indices[-1]]["utc"] if visible_indices else None,
+        }
+        if not visible_indices:
+            warnings.append(
+                f"{kind.title()} stays below the horizon for the entire requested time window."
+            )
+
+    return summary, warnings
+
+
+def build_visibility_aware_keyframe_indices(
+    frames: Sequence[Dict[str, Any]],
+    keyframe_count: int,
+    body_kinds: Sequence[str] = ("phobos", "deimos"),
+) -> Tuple[List[int], Dict[str, Dict[str, Any]], List[str]]:
+    selected = build_keyframe_indices(len(frames), keyframe_count)
+    warnings: List[str] = []
+
+    for kind in body_kinds:
+        visible_indices = [
+            index for index, frame in enumerate(frames) if body_by_kind(frame, kind)["visible"]
+        ]
+        if not visible_indices:
+            warnings.append(
+                f"{kind.title()} never appears above the horizon within the requested window."
+            )
+            continue
+
+        if any(body_by_kind(frames[index], kind)["visible"] for index in selected):
+            continue
+
+        anchor = visible_indices[len(visible_indices) // 2]
+        replace_position = min(
+            range(len(selected)),
+            key=lambda pos: abs(selected[pos] - anchor),
+        )
+        replacement = min(
+            visible_indices,
+            key=lambda index: (
+                abs(index - selected[replace_position]),
+                abs(index - anchor),
+            ),
+        )
+        if replacement not in selected:
+            selected[replace_position] = replacement
+
+    selected = sorted(selected)
+    summary, summary_warnings = build_visibility_summary(
+        frames=frames,
+        keyframe_indices=selected,
+        body_kinds=body_kinds,
+    )
+    warnings.extend(summary_warnings)
+    warnings = list(dict.fromkeys(warnings))
+    return selected, summary, warnings
+
+
 def approximation_notes() -> List[str]:
     return [
         "Sun uses NASA Mars24 seasonal and time-of-day formulas.",
         "Phobos and Deimos use circular, equatorial Mars-body-frame motion with fixed J2000 phase seeds.",
         "Moon positions are topocentric, using observer-to-moon vectors instead of infinite-distance directions.",
-        "No SPICE kernels, eclipses, phases, transits, refraction, or photometric atmosphere are modeled.",
+        "Moon phases use synchronous-rotation lighting and clipped irregular silhouettes in SVG.",
+        "No SPICE kernels, eclipses, transits, refraction, or photometric atmosphere are modeled.",
     ]
 
 
@@ -979,6 +1316,257 @@ def svg_escape(text: str) -> str:
     )
 
 
+def moon_model_for_kind(kind: str) -> MoonModel:
+    return MOON_MODELS[kind]
+
+
+def midpoint(
+    point_a: Sequence[float], point_b: Sequence[float]
+) -> Tuple[float, float]:
+    return ((point_a[0] + point_b[0]) / 2.0, (point_a[1] + point_b[1]) / 2.0)
+
+
+def smooth_closed_path(points: Sequence[Tuple[float, float]]) -> str:
+    if not points:
+        return ""
+    start = midpoint(points[-1], points[0])
+    parts = [f"M {start[0]:.2f} {start[1]:.2f}"]
+    for index, point in enumerate(points):
+        next_point = points[(index + 1) % len(points)]
+        segment_midpoint = midpoint(point, next_point)
+        parts.append(
+            f"Q {point[0]:.2f} {point[1]:.2f} {segment_midpoint[0]:.2f} {segment_midpoint[1]:.2f}"
+        )
+    parts.append("Z")
+    return " ".join(parts)
+
+
+def polygon_path(points: Sequence[Tuple[float, float]]) -> str:
+    if not points:
+        return ""
+    parts = [f"M {points[0][0]:.2f} {points[0][1]:.2f}"]
+    for point in points[1:]:
+        parts.append(f"L {point[0]:.2f} {point[1]:.2f}")
+    parts.append("Z")
+    return " ".join(parts)
+
+
+def moon_pixel_axes(model: MoonModel, radius_px: float) -> Tuple[float, float]:
+    axis_x_km, axis_y_km = model.face_on_axes_km
+    max_axis_km = max(axis_x_km, axis_y_km)
+    return (
+        radius_px * (axis_x_km / max_axis_km),
+        radius_px * (axis_y_km / max_axis_km),
+    )
+
+
+def scale_translate_points(
+    points: Sequence[Tuple[float, float]],
+    center_x: float,
+    center_y: float,
+    scale_x: float,
+    scale_y: float,
+) -> List[Tuple[float, float]]:
+    return [
+        (center_x + (point_x * scale_x), center_y - (point_y * scale_y))
+        for point_x, point_y in points
+    ]
+
+
+def rotate_unit_points(
+    points: Sequence[Tuple[float, float]],
+    bright_angle_deg: float,
+) -> List[Tuple[float, float]]:
+    theta = deg_to_rad(90.0 - bright_angle_deg)
+    cos_theta = math.cos(theta)
+    sin_theta = math.sin(theta)
+    rotated = []
+    for point_x, point_y in points:
+        rotated.append(
+            (
+                (point_x * cos_theta) - (point_y * sin_theta),
+                (point_x * sin_theta) + (point_y * cos_theta),
+            )
+        )
+    return rotated
+
+
+def unit_phase_polygon_points(
+    phase_angle_deg: float,
+    bright_angle_deg: float,
+    sample_count: int = 48,
+) -> List[Tuple[float, float]]:
+    phase_angle_deg = max(0.0, min(180.0, phase_angle_deg))
+    sign = -1.0 if phase_angle_deg <= 90.0 else 1.0
+    cosine_term = abs(math.cos(deg_to_rad(phase_angle_deg)))
+
+    points: List[Tuple[float, float]] = []
+    for sample in range(sample_count + 1):
+        y_coord = -1.0 + ((2.0 * sample) / sample_count)
+        x_coord = sign * cosine_term * math.sqrt(max(0.0, 1.0 - (y_coord * y_coord)))
+        points.append((x_coord, y_coord))
+
+    for sample in range(sample_count + 1):
+        theta = (math.pi / 2.0) - ((math.pi * sample) / sample_count)
+        points.append((math.cos(theta), math.sin(theta)))
+
+    return rotate_unit_points(points, bright_angle_deg)
+
+
+def moon_svg_offset(bright_angle_deg: float, distance_px: float) -> Tuple[float, float]:
+    angle = deg_to_rad(bright_angle_deg)
+    return (
+        math.sin(angle) * distance_px,
+        -math.cos(angle) * distance_px,
+    )
+
+
+def render_resolved_moon_svg(
+    body: MovingBody,
+    center_x: float,
+    center_y: float,
+    radius_px: float,
+    opacity: float,
+    clip_prefix: str,
+) -> Tuple[List[str], List[str]]:
+    model = moon_model_for_kind(body.kind)
+    scale_x, scale_y = moon_pixel_axes(model, radius_px)
+    silhouette_points = scale_translate_points(
+        model.silhouette_points,
+        center_x,
+        center_y,
+        scale_x,
+        scale_y,
+    )
+    silhouette_path = smooth_closed_path(silhouette_points)
+
+    clip_id = f"{clip_prefix}-{body.kind}-clip"
+    defs = [f'<clipPath id="{clip_id}"><path d="{silhouette_path}"/></clipPath>']
+    lines = [
+        f'<path d="{silhouette_path}" fill="{MOON_DARK_COLOR}" opacity="{max(0.42, opacity * 0.9):.3f}"/>'
+    ]
+
+    bright_angle_deg = body.bright_angle_deg if body.bright_angle_deg is not None else 90.0
+    if body.illuminated_fraction is not None and body.illuminated_fraction > 0.001:
+        lit_points = scale_translate_points(
+            unit_phase_polygon_points(body.phase_angle_deg or 180.0, bright_angle_deg),
+            center_x,
+            center_y,
+            scale_x,
+            scale_y,
+        )
+        lit_path = polygon_path(lit_points)
+        lines.append(
+            f'<path d="{lit_path}" fill="{body.color}" opacity="{opacity:.3f}" clip-path="url(#{clip_id})"/>'
+        )
+
+    lines.append(
+        f'<path d="{silhouette_path}" fill="none" stroke="#dce5f4" '
+        f'stroke-width="{max(0.85, radius_px * 0.1):.2f}" opacity="{min(1.0, opacity + 0.12):.3f}"/>'
+    )
+    return defs, lines
+
+
+def render_unresolved_moon_svg(
+    body: MovingBody,
+    center_x: float,
+    center_y: float,
+    radius_px: float,
+    opacity: float,
+) -> List[str]:
+    bright_angle_deg = body.bright_angle_deg if body.bright_angle_deg is not None else 90.0
+    highlight_dx, highlight_dy = moon_svg_offset(bright_angle_deg, radius_px * 0.34)
+    illuminated_fraction = body.illuminated_fraction if body.illuminated_fraction is not None else 0.5
+    highlight_radius = max(0.9, radius_px * (0.34 + (0.12 * illuminated_fraction)))
+    highlight_opacity = opacity * (0.18 + (0.72 * illuminated_fraction))
+
+    return [
+        (
+            f'<circle cx="{center_x:.2f}" cy="{center_y:.2f}" r="{radius_px * 1.28:.2f}" '
+            f'fill="{body.color}" opacity="{0.07 * opacity:.3f}" filter="url(#glow)"/>'
+        ),
+        (
+            f'<circle cx="{center_x:.2f}" cy="{center_y:.2f}" r="{radius_px:.2f}" '
+            f'fill="{MOON_DARK_COLOR}" stroke="#dbe2ef" stroke-width="1.1" opacity="{opacity:.3f}"/>'
+        ),
+        (
+            f'<circle cx="{center_x + highlight_dx:.2f}" cy="{center_y + highlight_dy:.2f}" '
+            f'r="{highlight_radius:.2f}" fill="{body.color}" opacity="{highlight_opacity:.3f}"/>'
+        ),
+    ]
+
+
+def render_moon_inset_panel(
+    moving_bodies: Sequence[MovingBody],
+    width: int,
+    height: int,
+) -> Tuple[List[str], List[str]]:
+    moon_bodies = [body for body in moving_bodies if body.kind in MOON_MODELS]
+    if not moon_bodies:
+        return [], []
+
+    moon_bodies.sort(key=lambda body: 0 if body.kind == "phobos" else 1)
+    panel_width = 300.0
+    panel_height = 158.0
+    panel_x = width - panel_width - 28.0
+    panel_y = height - panel_height - 24.0
+
+    defs: List[str] = []
+    lines: List[str] = [
+        (
+            f'<rect x="{panel_x:.2f}" y="{panel_y:.2f}" width="{panel_width:.2f}" '
+            f'height="{panel_height:.2f}" rx="18" fill="{MOON_INSET_PANEL_FILL}" '
+            f'fill-opacity="0.82" stroke="{MOON_INSET_PANEL_STROKE}" stroke-width="1.4"/>'
+        ),
+        (
+            f'<text x="{panel_x + 18:.2f}" y="{panel_y + 26:.2f}" fill="#eef3ff" '
+            'font-size="16" font-family="Menlo, Consolas, monospace">'
+            "Moon Phases"
+            "</text>"
+        ),
+    ]
+
+    centers = (
+        (panel_x + 88.0, panel_y + 84.0),
+        (panel_x + 212.0, panel_y + 84.0),
+    )
+    radii = {
+        "phobos": 33.0,
+        "deimos": 24.0,
+    }
+
+    for index, body in enumerate(moon_bodies[:2]):
+        center_x, center_y = centers[index]
+        radius_px = radii.get(body.kind, 26.0)
+        body_opacity = 1.0 if body.visible else 0.46
+        moon_defs, moon_lines = render_resolved_moon_svg(
+            body=body,
+            center_x=center_x,
+            center_y=center_y,
+            radius_px=radius_px,
+            opacity=body_opacity,
+            clip_prefix=f"inset-{index}",
+        )
+        defs.extend(moon_defs)
+        lines.extend(moon_lines)
+
+        illumination_pct = int(round(100.0 * (body.illuminated_fraction or 0.0)))
+        lines.append(
+            f'<text x="{center_x:.2f}" y="{panel_y + 128:.2f}" fill="#eef3ff" '
+            'font-size="14" font-family="Menlo, Consolas, monospace" text-anchor="middle">'
+            f"{svg_escape(body.name)}"
+            "</text>"
+        )
+        lines.append(
+            f'<text x="{center_x:.2f}" y="{panel_y + 146:.2f}" fill="#b9c6e3" '
+            'font-size="12" font-family="Menlo, Consolas, monospace" text-anchor="middle">'
+            f"{illumination_pct}% lit | alt {body.alt_deg:+.0f}°"
+            "</text>"
+        )
+
+    return defs, lines
+
+
 def render_sky_svg(
     output_path: str,
     visible_stars: Sequence[VisibleStar],
@@ -1026,7 +1614,9 @@ def render_sky_svg(
             '<feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>'
             "</filter>"
         ),
-        "</defs>",
+    ]
+    extra_defs: List[str] = []
+    content_lines: List[str] = [
         f'<rect width="{width}" height="{height}" fill="url(#bg)"/>',
         (
             f'<text x="{cx}" y="72" fill="#eef4ff" font-size="28" '
@@ -1048,11 +1638,11 @@ def render_sky_svg(
 
     for alt in rings:
         ring_radius = radius * ((90.0 - alt) / 90.0)
-        lines.append(
+        content_lines.append(
             f'<circle cx="{cx}" cy="{cy}" r="{ring_radius:.2f}" fill="none" '
             'stroke="#24314c" stroke-width="1"/>'
         )
-        lines.append(
+        content_lines.append(
             f'<text x="{cx + 8}" y="{cy - ring_radius - 6:.2f}" fill="#5f7198" '
             'font-size="14" font-family="Menlo, Consolas, monospace">'
             f"{alt}°"
@@ -1063,11 +1653,11 @@ def render_sky_svg(
         az = deg_to_rad(az_deg)
         x = cx + (radius + 24.0) * math.sin(az)
         y = cy - (radius + 24.0) * math.cos(az)
-        lines.append(
+        content_lines.append(
             f'<line x1="{cx}" y1="{cy}" x2="{cx + radius * math.sin(az):.2f}" '
             f'y2="{cy - radius * math.cos(az):.2f}" stroke="#182339" stroke-width="1"/>'
         )
-        lines.append(
+        content_lines.append(
             f'<text x="{x:.2f}" y="{y:.2f}" fill="#d7e3ff" font-size="22" '
             'font-family="Menlo, Consolas, monospace" text-anchor="middle" '
             'dominant-baseline="middle">'
@@ -1088,19 +1678,21 @@ def render_sky_svg(
         y = cy - r * math.cos(az)
         base_opacity = min(1.0, max(0.35, 1.1 - (star.vmag / 9.0)))
         opacity = base_opacity * global_star_opacity
-        lines.append(
+        content_lines.append(
             f'<circle cx="{x:.2f}" cy="{y:.2f}" r="{star.size_px:.2f}" '
             f'fill="{star.rgb}" opacity="{opacity:.3f}" filter="url(#glow)"/>'
         )
         if (star.hr, star.name) in labeled and opacity >= 0.18:
-            lines.append(
+            content_lines.append(
                 f'<text x="{x + 10.0:.2f}" y="{y - 10.0:.2f}" fill="#c9d7f4" '
                 'font-size="15" font-family="Menlo, Consolas, monospace">'
                 f"{svg_escape(star.name)}"
                 "</text>"
             )
 
-    moon_opacity = moon_opacity_from_sun_altitude(sun_altitude_deg or -30.0)
+    moon_opacity = moon_opacity_from_sun_altitude(
+        sun_altitude_deg if sun_altitude_deg is not None else -30.0
+    )
     for body in moving_bodies:
         if not body.visible:
             continue
@@ -1109,25 +1701,55 @@ def render_sky_svg(
         x = cx + r * math.sin(az)
         y = cy - r * math.cos(az)
         opacity = 1.0 if body.kind == "sun" else moon_opacity
-        stroke = "#fff4d0" if body.kind == "sun" else "#dbe2ef"
-        glow_radius = body.symbol_size_px * (1.7 if body.kind == "sun" else 1.25)
-        lines.append(
-            f'<circle cx="{x:.2f}" cy="{y:.2f}" r="{glow_radius:.2f}" '
-            f'fill="{body.color}" opacity="{0.16 if body.kind == "sun" else 0.08:.3f}" '
-            'filter="url(#glow)"/>'
-        )
-        lines.append(
-            f'<circle cx="{x:.2f}" cy="{y:.2f}" r="{body.symbol_size_px:.2f}" '
-            f'fill="{body.color}" stroke="{stroke}" stroke-width="1.5" '
-            f'opacity="{opacity:.3f}"/>'
-        )
+        if body.kind == "sun":
+            stroke = "#fff4d0"
+            glow_radius = body.symbol_size_px * 1.7
+            content_lines.append(
+                f'<circle cx="{x:.2f}" cy="{y:.2f}" r="{glow_radius:.2f}" '
+                f'fill="{body.color}" opacity="0.16" filter="url(#glow)"/>'
+            )
+            content_lines.append(
+                f'<circle cx="{x:.2f}" cy="{y:.2f}" r="{body.symbol_size_px:.2f}" '
+                f'fill="{body.color}" stroke="{stroke}" stroke-width="1.5" '
+                f'opacity="{opacity:.3f}"/>'
+            )
+        elif body.kind in MOON_MODELS:
+            if body.resolved_in_main_view:
+                defs_lines, moon_lines = render_resolved_moon_svg(
+                    body=body,
+                    center_x=x,
+                    center_y=y,
+                    radius_px=body.symbol_size_px,
+                    opacity=opacity,
+                    clip_prefix=f"sky-{body.kind}-{int(round(x))}-{int(round(y))}",
+                )
+                extra_defs.extend(defs_lines)
+                content_lines.extend(moon_lines)
+            else:
+                content_lines.extend(
+                    render_unresolved_moon_svg(
+                        body=body,
+                        center_x=x,
+                        center_y=y,
+                        radius_px=body.symbol_size_px,
+                        opacity=opacity,
+                    )
+                )
         label_fill = "#fff6d8" if body.kind == "sun" else "#e8eefc"
-        lines.append(
+        content_lines.append(
             f'<text x="{x + 12.0:.2f}" y="{y - 12.0:.2f}" fill="{label_fill}" '
             'font-size="16" font-family="Menlo, Consolas, monospace">'
             f"{svg_escape(body.name)}"
             "</text>"
         )
+
+    inset_defs, inset_lines = render_moon_inset_panel(moving_bodies, width, height)
+    extra_defs.extend(inset_defs)
+
+    lines.extend(extra_defs)
+    lines.append("</defs>")
+    lines.extend(content_lines)
+    lines.extend(inset_lines)
 
     lines.append("</svg>")
     with open(output_path, "w", encoding="utf-8") as handle:
