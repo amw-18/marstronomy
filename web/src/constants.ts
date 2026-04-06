@@ -1,4 +1,4 @@
-import type { Point2, Site, ViewerState } from "./types";
+import type { GridMode, Point2, Site, ViewerState } from "./types";
 
 export const DEFAULT_START_UTC_ISO = "2026-04-06T00:00:00Z";
 
@@ -17,6 +17,8 @@ export const MAX_FOV_DEG = 95;
 export const MIN_PITCH_DEG = -10;
 export const MAX_PITCH_DEG = 89.5;
 export const RENDER_PIXEL_RATIO_CAP = 2;
+export const DEFAULT_GRID_MODE: GridMode = "azimuthal";
+export const DEFAULT_SHOW_ECLIPTIC = true;
 
 export const SPEED_PRESETS = [0, 1, 10, 60, 300, 1800, 7200] as const;
 export const STEP_BUTTONS = [
@@ -33,6 +35,8 @@ export const DEFAULT_VIEWER_STATE = (): ViewerState => ({
   yawDeg: DEFAULT_YAW_DEG,
   pitchDeg: DEFAULT_PITCH_DEG,
   fovDeg: DEFAULT_FOV_DEG,
+  gridMode: DEFAULT_GRID_MODE,
+  showEcliptic: DEFAULT_SHOW_ECLIPTIC,
 });
 
 export const SUN_COLOR = "#ffd54a";

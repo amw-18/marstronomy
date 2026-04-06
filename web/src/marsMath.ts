@@ -8,6 +8,7 @@ import {
   SUN_COLOR,
 } from "./constants";
 import type {
+  MarsCelestialBasis,
   MarsSolarData,
   MoonModel,
   MoonPhaseGeometry,
@@ -20,6 +21,9 @@ import type {
 } from "./types";
 
 const TT_MINUS_UTC_SECONDS_DEFAULT = 69.184;
+const EARTH_ECLIPTIC_OBLIQUITY_J2000_DEG = 23.439291111;
+const MARS_ORBIT_INCLINATION_J2000_DEG = 1.85061;
+const MARS_ORBIT_ASCENDING_NODE_J2000_DEG = 49.57854;
 
 const MARS_POLE_RA_0_DEG = 317.68143;
 const MARS_POLE_RA_RATE_DEG_PER_CENTURY = -0.1061;
@@ -240,6 +244,28 @@ function rotateAboutAxis(vector: Vec3, axisUnit: Vec3, angleDeg: number): Vec3 {
   ];
 }
 
+function eclipticToEquatorial(vectorEcliptic: Vec3): Vec3 {
+  const obliquity = degToRad(EARTH_ECLIPTIC_OBLIQUITY_J2000_DEG);
+  const cosObliquity = Math.cos(obliquity);
+  const sinObliquity = Math.sin(obliquity);
+  return [
+    vectorEcliptic[0],
+    vectorEcliptic[1] * cosObliquity - vectorEcliptic[2] * sinObliquity,
+    vectorEcliptic[1] * sinObliquity + vectorEcliptic[2] * cosObliquity,
+  ];
+}
+
+function marsOrbitPole(): Vec3 {
+  const inclination = degToRad(MARS_ORBIT_INCLINATION_J2000_DEG);
+  const ascendingNode = degToRad(MARS_ORBIT_ASCENDING_NODE_J2000_DEG);
+  const orbitPoleEcliptic: Vec3 = [
+    Math.sin(ascendingNode) * Math.sin(inclination),
+    -Math.cos(ascendingNode) * Math.sin(inclination),
+    Math.cos(inclination),
+  ];
+  return normalizeVector(eclipticToEquatorial(orbitPoleEcliptic));
+}
+
 export function utcMsToJdUtc(utcMs: number): number {
   return 2440587.5 + utcMs / 86400000;
 }
@@ -285,6 +311,14 @@ export function inertialToBody(vectorInertial: Vec3, xBody: Vec3, yBody: Vec3, z
     dot(vectorInertial, xBody),
     dot(vectorInertial, yBody),
     dot(vectorInertial, zBody),
+  ];
+}
+
+export function bodyToInertial(vectorBody: Vec3, xBody: Vec3, yBody: Vec3, zBody: Vec3): Vec3 {
+  return [
+    vectorBody[0] * xBody[0] + vectorBody[1] * yBody[0] + vectorBody[2] * zBody[0],
+    vectorBody[0] * xBody[1] + vectorBody[1] * yBody[1] + vectorBody[2] * zBody[1],
+    vectorBody[0] * xBody[2] + vectorBody[1] * yBody[2] + vectorBody[2] * zBody[2],
   ];
 }
 
@@ -618,6 +652,46 @@ export function buildInertialToLocalRows(jdTt: number, site: Site): [Vec3, Vec3,
 
 export function inertialToLocalVector(vectorInertial: Vec3, rows: [Vec3, Vec3, Vec3]): Vec3 {
   return [dot(vectorInertial, rows[0]), dot(vectorInertial, rows[1]), dot(vectorInertial, rows[2])];
+}
+
+export function vectorFromCelestialBasis(
+  longitudeDeg: number,
+  latitudeDeg: number,
+  xAxis: Vec3,
+  yAxis: Vec3,
+  zAxis: Vec3,
+): Vec3 {
+  const longitude = degToRad(longitudeDeg);
+  const latitude = degToRad(latitudeDeg);
+  const cosLatitude = Math.cos(latitude);
+  return [
+    xAxis[0] * cosLatitude * Math.cos(longitude) +
+      yAxis[0] * cosLatitude * Math.sin(longitude) +
+      zAxis[0] * Math.sin(latitude),
+    xAxis[1] * cosLatitude * Math.cos(longitude) +
+      yAxis[1] * cosLatitude * Math.sin(longitude) +
+      zAxis[1] * Math.sin(latitude),
+    xAxis[2] * cosLatitude * Math.cos(longitude) +
+      yAxis[2] * cosLatitude * Math.sin(longitude) +
+      zAxis[2] * Math.sin(latitude),
+  ];
+}
+
+export function marsCelestialBasis(jdTt: number): MarsCelestialBasis {
+  const [poleRaDeg, poleDecDeg] = marsOrientation(jdTt);
+  const pole = vectorFromRaDec(poleRaDeg, poleDecDeg);
+  const orbitPole = marsOrbitPole();
+  let equinox = normalizeVector(cross(pole, orbitPole));
+  if (dot(cross(orbitPole, equinox), pole) < 0) {
+    equinox = scaleVector(equinox, -1);
+  }
+  return {
+    equinox,
+    equatorialEast: normalizeVector(cross(pole, equinox)),
+    pole,
+    eclipticEast: normalizeVector(cross(orbitPole, equinox)),
+    orbitPole,
+  };
 }
 
 export function sceneFrameForTime(utcMs: number, site: Site = DEFAULT_SITE): SceneFrame {

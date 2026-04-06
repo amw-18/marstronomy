@@ -5,12 +5,14 @@ import {
   dot,
   inertialToLocalVector,
   localVectorFromAltAz,
+  marsCelestialBasis,
   markerSizeForMagnitude,
   moonModelForKind,
   moonPixelAxes,
   normalizeVector,
   scaleVector,
   unitPhasePolygonPoints,
+  vectorFromCelestialBasis,
   vectorNorm,
 } from "./marsMath";
 import type { MovingBody, Point2, RenderStats, RuntimeStar, SceneFrame, Vec3, ViewerState } from "./types";
@@ -20,6 +22,15 @@ interface ProjectedPoint {
   y: number;
   depth: number;
 }
+
+interface ProjectedPathStyle {
+  strokeStyle: string;
+  lineWidth: number;
+  alpha?: number;
+  lineDash?: number[];
+}
+
+const SKY_VISIBILITY_EPSILON = 1e-4;
 
 function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * t;
@@ -80,6 +91,246 @@ function projectLocalVector(
     y: height * 0.5 - (y / z) * focalLength,
     depth: z,
   };
+}
+
+function projectPathPoint(
+  localVector: Vec3,
+  state: ViewerState,
+  width: number,
+  height: number,
+): ProjectedPoint | null {
+  if (localVector[2] <= SKY_VISIBILITY_EPSILON) {
+    return null;
+  }
+  const projected = projectLocalVector(localVector, state, width, height);
+  if (!projected) {
+    return null;
+  }
+  const clipLimit = Math.max(width, height) * 4;
+  if (
+    Math.abs(projected.x - width * 0.5) > clipLimit ||
+    Math.abs(projected.y - height * 0.5) > clipLimit
+  ) {
+    return null;
+  }
+  return projected;
+}
+
+function strokeProjectedPath(
+  ctx: CanvasRenderingContext2D,
+  localVectors: Vec3[],
+  state: ViewerState,
+  width: number,
+  height: number,
+  style: ProjectedPathStyle,
+): void {
+  ctx.save();
+  ctx.strokeStyle = style.strokeStyle;
+  ctx.lineWidth = style.lineWidth;
+  ctx.globalAlpha = style.alpha ?? 1;
+  if (typeof ctx.setLineDash === "function") {
+    ctx.setLineDash(style.lineDash ?? []);
+  }
+
+  let drawing = false;
+  for (const localVector of localVectors) {
+    const projected = projectPathPoint(localVector, state, width, height);
+    if (!projected) {
+      if (drawing) {
+        ctx.stroke();
+        drawing = false;
+      }
+      continue;
+    }
+
+    if (!drawing) {
+      ctx.beginPath();
+      ctx.moveTo(projected.x, projected.y);
+      drawing = true;
+      continue;
+    }
+
+    ctx.lineTo(projected.x, projected.y);
+  }
+
+  if (drawing) {
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function sampleAzimuthalAltitudeLine(altDeg: number, stepDeg = 4): Vec3[] {
+  const points: Vec3[] = [];
+  for (let azDeg = 0; azDeg <= 360; azDeg += stepDeg) {
+    points.push(localVectorFromAltAz(altDeg, azDeg));
+  }
+  return points;
+}
+
+function sampleAzimuthalMeridian(azDeg: number, stepDeg = 3): Vec3[] {
+  const points: Vec3[] = [];
+  for (let altDeg = 0; altDeg <= 90; altDeg += stepDeg) {
+    points.push(localVectorFromAltAz(altDeg, azDeg));
+  }
+  return points;
+}
+
+function sampleCelestialLatitudeLine(
+  latitudeDeg: number,
+  xAxis: Vec3,
+  yAxis: Vec3,
+  zAxis: Vec3,
+  inertialToLocalRows: [Vec3, Vec3, Vec3],
+  stepDeg = 4,
+): Vec3[] {
+  const points: Vec3[] = [];
+  for (let longitudeDeg = 0; longitudeDeg <= 360; longitudeDeg += stepDeg) {
+    points.push(
+      inertialToLocalVector(
+        vectorFromCelestialBasis(longitudeDeg, latitudeDeg, xAxis, yAxis, zAxis),
+        inertialToLocalRows,
+      ),
+    );
+  }
+  return points;
+}
+
+function sampleCelestialLongitudeLine(
+  longitudeDeg: number,
+  xAxis: Vec3,
+  yAxis: Vec3,
+  zAxis: Vec3,
+  inertialToLocalRows: [Vec3, Vec3, Vec3],
+  stepDeg = 3,
+): Vec3[] {
+  const points: Vec3[] = [];
+  for (let latitudeDeg = -90; latitudeDeg <= 90; latitudeDeg += stepDeg) {
+    points.push(
+      inertialToLocalVector(
+        vectorFromCelestialBasis(longitudeDeg, latitudeDeg, xAxis, yAxis, zAxis),
+        inertialToLocalRows,
+      ),
+    );
+  }
+  return points;
+}
+
+function drawGridOverlay(
+  ctx: CanvasRenderingContext2D,
+  frame: SceneFrame,
+  state: ViewerState,
+  width: number,
+  height: number,
+): void {
+  if (state.gridMode === "none" && !state.showEcliptic) {
+    return;
+  }
+
+  if (state.gridMode === "azimuthal") {
+    const azimuthalMinorStyle: ProjectedPathStyle = {
+      strokeStyle: "rgba(233, 206, 180, 0.34)",
+      lineWidth: 0.85,
+      alpha: 0.7,
+    };
+    const azimuthalMajorStyle: ProjectedPathStyle = {
+      strokeStyle: "rgba(247, 225, 198, 0.52)",
+      lineWidth: 1.1,
+      alpha: 0.9,
+    };
+    for (const altitudeDeg of [15, 30, 45, 60, 75]) {
+      strokeProjectedPath(
+        ctx,
+        sampleAzimuthalAltitudeLine(altitudeDeg),
+        state,
+        width,
+        height,
+        altitudeDeg === 45 ? azimuthalMajorStyle : azimuthalMinorStyle,
+      );
+    }
+    for (const azimuthDeg of [0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330]) {
+      strokeProjectedPath(
+        ctx,
+        sampleAzimuthalMeridian(azimuthDeg),
+        state,
+        width,
+        height,
+        azimuthDeg % 90 === 0 ? azimuthalMajorStyle : azimuthalMinorStyle,
+      );
+    }
+  }
+
+  if (state.gridMode === "equatorial" || state.showEcliptic) {
+    const basis = marsCelestialBasis(frame.solarData.jdTt);
+    if (state.gridMode === "equatorial") {
+      const equatorialMinorStyle: ProjectedPathStyle = {
+        strokeStyle: "rgba(147, 217, 255, 0.32)",
+        lineWidth: 0.85,
+        alpha: 0.72,
+      };
+      const equatorialMajorStyle: ProjectedPathStyle = {
+        strokeStyle: "rgba(180, 233, 255, 0.56)",
+        lineWidth: 1.1,
+        alpha: 0.94,
+      };
+
+      for (const declinationDeg of [-60, -30, 0, 30, 60]) {
+        strokeProjectedPath(
+          ctx,
+          sampleCelestialLatitudeLine(
+            declinationDeg,
+            basis.equinox,
+            basis.equatorialEast,
+            basis.pole,
+            frame.inertialToLocalRows,
+          ),
+          state,
+          width,
+          height,
+          declinationDeg === 0 ? equatorialMajorStyle : equatorialMinorStyle,
+        );
+      }
+
+      for (const rightAscensionDeg of [0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330]) {
+        strokeProjectedPath(
+          ctx,
+          sampleCelestialLongitudeLine(
+            rightAscensionDeg,
+            basis.equinox,
+            basis.equatorialEast,
+            basis.pole,
+            frame.inertialToLocalRows,
+          ),
+          state,
+          width,
+          height,
+          rightAscensionDeg % 90 === 0 ? equatorialMajorStyle : equatorialMinorStyle,
+        );
+      }
+    }
+
+    if (state.showEcliptic) {
+      strokeProjectedPath(
+        ctx,
+        sampleCelestialLatitudeLine(
+          0,
+          basis.equinox,
+          basis.eclipticEast,
+          basis.orbitPole,
+          frame.inertialToLocalRows,
+          3,
+        ),
+        state,
+        width,
+        height,
+        {
+          strokeStyle: "rgba(255, 190, 102, 0.76)",
+          lineWidth: 1.45,
+          alpha: 0.95,
+          lineDash: [12, 10],
+        },
+      );
+    }
+  }
 }
 
 function drawTextHalo(
@@ -511,6 +762,7 @@ export class SkyRenderer {
     ctx.clearRect(0, 0, width, height);
 
     drawSkyBackground(ctx, width, height, frame.bodies.sun.altDeg);
+    drawGridOverlay(ctx, frame, state, width, height);
     drawHorizon(ctx, state, width, height);
     drawCardinalMarkers(ctx, state, width, height);
     const visibleStarCount = drawStars(ctx, stars, frame, state, width, height);

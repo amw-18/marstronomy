@@ -1,7 +1,17 @@
 import { describe, expect, test } from "vitest";
 
 import reference from "./fixtures/mars-reference.json";
-import { DEFAULT_SITE, sceneFrameForTime } from "./marsMath";
+import {
+  DEFAULT_SITE,
+  bodyToInertial,
+  dot,
+  marsBodyBasis,
+  marsCelestialBasis,
+  marsOrientation,
+  sceneFrameForTime,
+  sunDirectionBody,
+  vectorFromCelestialBasis,
+} from "./marsMath";
 
 function expectNear(actual: number, expected: number, tolerance = 1e-4): void {
   expect(Math.abs(actual - expected)).toBeLessThanOrEqual(tolerance);
@@ -32,5 +42,29 @@ describe("mars browser math", () => {
         1e-4,
       );
     }
+  });
+
+  test("builds a Mars celestial basis aligned with the equator and ecliptic", () => {
+    const frame = sceneFrameForTime(Date.parse("2026-04-06T00:00:00Z"), DEFAULT_SITE);
+    const basis = marsCelestialBasis(frame.solarData.jdTt);
+    const obliquityDeg = (Math.acos(dot(basis.pole, basis.orbitPole)) * 180) / Math.PI;
+    expectNear(obliquityDeg, 25.19, 0.2);
+    expect(Math.abs(dot(basis.equinox, basis.pole))).toBeLessThan(1e-6);
+    expect(Math.abs(dot(basis.equinox, basis.orbitPole))).toBeLessThan(1e-6);
+
+    const justPastEquinox = vectorFromCelestialBasis(
+      1,
+      0,
+      basis.equinox,
+      basis.eclipticEast,
+      basis.orbitPole,
+    );
+    const declinationDeg = (Math.asin(dot(justPastEquinox, basis.pole)) * 180) / Math.PI;
+    expect(declinationDeg).toBeGreaterThan(0);
+
+    const [poleRaDeg, poleDecDeg, primeMeridianDeg] = marsOrientation(frame.solarData.jdTt);
+    const [xBody, yBody, zBody] = marsBodyBasis(poleRaDeg, poleDecDeg, primeMeridianDeg);
+    const sunInertial = bodyToInertial(sunDirectionBody(frame.solarData), xBody, yBody, zBody);
+    expectNear(dot(sunInertial, basis.orbitPole), 0, 5e-3);
   });
 });

@@ -234,6 +234,17 @@ input {
   justify-content: center;
 }
 
+.controls-row--projection {
+  align-items: center;
+}
+
+.controls-label {
+  color: var(--text-soft);
+  font-size: 0.82rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .controls-row + .controls-row {
   margin-top: 0.7rem;
 }
