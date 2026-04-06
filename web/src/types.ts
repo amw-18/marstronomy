@@ -1,6 +1,5 @@
 export type Vec3 = [number, number, number];
 export type Point2 = [number, number];
-export type GridMode = "none" | "azimuthal" | "equatorial";
 
 export interface RuntimeStar {
   h: number | null;
@@ -103,7 +102,8 @@ export interface ViewerState {
   yawDeg: number;
   pitchDeg: number;
   fovDeg: number;
-  gridMode: GridMode;
+  showAzimuthalGrid: boolean;
+  showEquatorialGrid: boolean;
   showEcliptic: boolean;
 }
 

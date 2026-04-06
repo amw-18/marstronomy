@@ -1,6 +1,7 @@
 import {
   DEFAULT_FOV_DEG,
-  DEFAULT_GRID_MODE,
+  DEFAULT_SHOW_AZIMUTHAL_GRID,
+  DEFAULT_SHOW_EQUATORIAL_GRID,
   DEFAULT_SHOW_ECLIPTIC,
   DEFAULT_PITCH_DEG,
   DEFAULT_START_UTC_ISO,
@@ -12,7 +13,7 @@ import {
   MIN_PITCH_DEG,
 } from "./constants";
 import { clamp } from "./marsMath";
-import type { GridMode, ViewerState } from "./types";
+import type { ViewerState } from "./types";
 
 function maybeNumber(value: string | null): number | null {
   if (value === null) {
@@ -22,11 +23,18 @@ function maybeNumber(value: string | null): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-function parseGridMode(value: string | null): GridMode | null {
+function parseLegacyGridMode(value: string | null): "none" | "azimuthal" | "equatorial" | null {
   if (value === "none" || value === "azimuthal" || value === "equatorial") {
     return value;
   }
   return null;
+}
+
+function maybeBoolean(value: string | null): boolean | null {
+  if (value === null) {
+    return null;
+  }
+  return value !== "0";
 }
 
 export function readStateFromSearch(search: string): ViewerState {
@@ -39,8 +47,21 @@ export function readStateFromSearch(search: string): ViewerState {
   const yaw = maybeNumber(params.get("yaw"));
   const pitch = maybeNumber(params.get("pitch"));
   const fov = maybeNumber(params.get("fov"));
-  const gridMode = parseGridMode(params.get("grid"));
-  const ecliptic = params.get("ecliptic");
+  const legacyGridMode = parseLegacyGridMode(params.get("grid"));
+  const azimuthal = maybeBoolean(params.get("azimuthal"));
+  const equatorial = maybeBoolean(params.get("equatorial"));
+  const ecliptic = maybeBoolean(params.get("ecliptic"));
+
+  const showAzimuthalGrid =
+    azimuthal ??
+    (legacyGridMode === null
+      ? DEFAULT_SHOW_AZIMUTHAL_GRID
+      : legacyGridMode === "azimuthal");
+  const showEquatorialGrid =
+    equatorial ??
+    (legacyGridMode === null
+      ? DEFAULT_SHOW_EQUATORIAL_GRID
+      : legacyGridMode === "equatorial");
 
   return {
     simUtcMs: Number.isFinite(parsedUtc) ? parsedUtc : Date.parse(DEFAULT_START_UTC_ISO),
@@ -49,8 +70,9 @@ export function readStateFromSearch(search: string): ViewerState {
     yawDeg: wrapYaw(yaw ?? DEFAULT_YAW_DEG),
     pitchDeg: clamp(pitch ?? DEFAULT_PITCH_DEG, MIN_PITCH_DEG, MAX_PITCH_DEG),
     fovDeg: clamp(fov ?? DEFAULT_FOV_DEG, MIN_FOV_DEG, MAX_FOV_DEG),
-    gridMode: gridMode ?? DEFAULT_GRID_MODE,
-    showEcliptic: ecliptic === null ? DEFAULT_SHOW_ECLIPTIC : ecliptic !== "0",
+    showAzimuthalGrid,
+    showEquatorialGrid,
+    showEcliptic: ecliptic ?? DEFAULT_SHOW_ECLIPTIC,
   };
 }
 
@@ -65,7 +87,8 @@ export function writeStateToSearch(state: ViewerState): string {
   params.set("yaw", state.yawDeg.toFixed(2));
   params.set("pitch", state.pitchDeg.toFixed(2));
   params.set("fov", state.fovDeg.toFixed(2));
-  params.set("grid", state.gridMode);
+  params.set("azimuthal", state.showAzimuthalGrid ? "1" : "0");
+  params.set("equatorial", state.showEquatorialGrid ? "1" : "0");
   params.set("ecliptic", state.showEcliptic ? "1" : "0");
   return `?${params.toString()}`;
 }

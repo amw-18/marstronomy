@@ -222,11 +222,11 @@ function drawGridOverlay(
   width: number,
   height: number,
 ): void {
-  if (state.gridMode === "none" && !state.showEcliptic) {
+  if (!state.showAzimuthalGrid && !state.showEquatorialGrid && !state.showEcliptic) {
     return;
   }
 
-  if (state.gridMode === "azimuthal") {
+  if (state.showAzimuthalGrid) {
     const azimuthalMinorStyle: ProjectedPathStyle = {
       strokeStyle: "rgba(233, 206, 180, 0.34)",
       lineWidth: 0.85,
@@ -259,9 +259,9 @@ function drawGridOverlay(
     }
   }
 
-  if (state.gridMode === "equatorial" || state.showEcliptic) {
+  if (state.showEquatorialGrid || state.showEcliptic) {
     const basis = marsCelestialBasis(frame.solarData.jdTt);
-    if (state.gridMode === "equatorial") {
+    if (state.showEquatorialGrid) {
       const equatorialMinorStyle: ProjectedPathStyle = {
         strokeStyle: "rgba(147, 217, 255, 0.32)",
         lineWidth: 0.85,

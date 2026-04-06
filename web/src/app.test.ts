@@ -103,7 +103,8 @@ describe("mars observer app", () => {
     eclipticButton.click();
 
     const next = app.getDebugSnapshot().state;
-    expect(next.gridMode).toBe("equatorial");
+    expect(next.showAzimuthalGrid).toBe(true);
+    expect(next.showEquatorialGrid).toBe(true);
     expect(next.showEcliptic).toBe(false);
     app.destroy();
   });

@@ -13,7 +13,7 @@ import {
 } from "./constants";
 import { formatMarsClock, formatUtcInputValue, parseUtcInputValue, sceneFrameForTime, wrapDegrees } from "./marsMath";
 import { SkyRenderer, renderMoonInset } from "./render";
-import type { AppDebugSnapshot, GridMode, RenderStats, RuntimeStar, SceneFrame, ViewerState } from "./types";
+import type { AppDebugSnapshot, RenderStats, RuntimeStar, SceneFrame, ViewerState } from "./types";
 import { writeStateToSearch } from "./urlState";
 
 interface CreateAppOptions {
@@ -175,8 +175,7 @@ export class MarsObserverApp {
           ).join("")}
         </div>
         <div class="controls-row controls-row--projection">
-          <span class="controls-label">Grid</span>
-          <button class="speed-chip" data-grid="none" type="button">Off</button>
+          <span class="controls-label">Overlays</span>
           <button class="speed-chip" data-grid="azimuthal" type="button">Azimuthal</button>
           <button class="speed-chip" data-grid="equatorial" type="button">Equatorial</button>
           <button class="speed-chip" data-action="toggle-ecliptic" type="button">Ecliptic</button>
@@ -300,15 +299,14 @@ export class MarsObserverApp {
     this.elements.gridButtons.forEach((button) => {
       button.addEventListener("click", () => {
         const nextGridMode = button.dataset.grid;
-        if (
-          nextGridMode !== "none" &&
-          nextGridMode !== "azimuthal" &&
-          nextGridMode !== "equatorial"
-        ) {
+        if (nextGridMode !== "azimuthal" && nextGridMode !== "equatorial") {
           return;
         }
-        const gridMode: GridMode = nextGridMode;
-        this.state.gridMode = gridMode;
+        if (nextGridMode === "azimuthal") {
+          this.state.showAzimuthalGrid = !this.state.showAzimuthalGrid;
+        } else {
+          this.state.showEquatorialGrid = !this.state.showEquatorialGrid;
+        }
         this.requestRender();
         this.scheduleUrlSync();
       });
@@ -337,8 +335,12 @@ export class MarsObserverApp {
     });
 
     this.elements.gridButtons.forEach((button) => {
-      button.classList.toggle("is-active", button.dataset.grid === this.state.gridMode);
-      button.setAttribute("aria-pressed", String(button.dataset.grid === this.state.gridMode));
+      const isActive =
+        button.dataset.grid === "azimuthal"
+          ? this.state.showAzimuthalGrid
+          : this.state.showEquatorialGrid;
+      button.classList.toggle("is-active", isActive);
+      button.setAttribute("aria-pressed", String(isActive));
     });
 
     this.elements.eclipticButton.classList.toggle("is-active", this.state.showEcliptic);
