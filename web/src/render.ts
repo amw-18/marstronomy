@@ -707,9 +707,7 @@ function drawMovingBodies(
 
     drawTextHalo(
       ctx,
-      body.kind !== "sun" && body.kind !== "phobos" && body.kind !== "deimos"
-        ? `${body.name} (planet)`
-        : body.name,
+      body.name,
       projected.x,
       projected.y -
         Math.max(
