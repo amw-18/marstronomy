@@ -87,6 +87,14 @@ export interface SceneFrame {
   };
 }
 
+export interface MarsCelestialBasis {
+  equinox: Vec3;
+  equatorialEast: Vec3;
+  pole: Vec3;
+  eclipticEast: Vec3;
+  orbitPole: Vec3;
+}
+
 export interface ViewerState {
   simUtcMs: number;
   playing: boolean;
@@ -94,6 +102,9 @@ export interface ViewerState {
   yawDeg: number;
   pitchDeg: number;
   fovDeg: number;
+  showAzimuthalGrid: boolean;
+  showEquatorialGrid: boolean;
+  showEcliptic: boolean;
 }
 
 export interface RenderStats {

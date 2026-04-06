@@ -91,6 +91,24 @@ describe("mars observer app", () => {
     app.destroy();
   });
 
+  test("grid controls update the viewer state", () => {
+    const app = createMarsObserverApp(root, {
+      stars,
+      syncUrl: false,
+    });
+    const equatorialButton = root.querySelector("[data-grid='equatorial']") as HTMLButtonElement;
+    const eclipticButton = root.querySelector("[data-action='toggle-ecliptic']") as HTMLButtonElement;
+
+    equatorialButton.click();
+    eclipticButton.click();
+
+    const next = app.getDebugSnapshot().state;
+    expect(next.showAzimuthalGrid).toBe(true);
+    expect(next.showEquatorialGrid).toBe(true);
+    expect(next.showEcliptic).toBe(false);
+    app.destroy();
+  });
+
   test("high simulation speed makes Phobos move faster than Deimos", () => {
     const app = createMarsObserverApp(root, {
       stars,

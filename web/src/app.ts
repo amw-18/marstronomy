@@ -31,6 +31,8 @@ interface ElementRefs {
   resetButton: HTMLButtonElement;
   speedButtons: HTMLButtonElement[];
   stepButtons: HTMLButtonElement[];
+  gridButtons: HTMLButtonElement[];
+  eclipticButton: HTMLButtonElement;
   phobosCanvas: HTMLCanvasElement;
   phobosMeta: HTMLElement;
   deimosCanvas: HTMLCanvasElement;
@@ -172,6 +174,12 @@ export class MarsObserverApp {
               `<button class="speed-chip" data-speed="${speed}" type="button">${speed} s/s</button>`,
           ).join("")}
         </div>
+        <div class="controls-row controls-row--projection">
+          <span class="controls-label">Overlays</span>
+          <button class="speed-chip" data-grid="azimuthal" type="button">Azimuthal</button>
+          <button class="speed-chip" data-grid="equatorial" type="button">Equatorial</button>
+          <button class="speed-chip" data-action="toggle-ecliptic" type="button">Ecliptic</button>
+        </div>
       </section>
       <section class="hud-panel hud-panel--moon">
         <p class="eyebrow">Moon Phases</p>
@@ -205,6 +213,8 @@ export class MarsObserverApp {
       resetButton: query<HTMLButtonElement>("[data-action='reset-view']"),
       speedButtons: Array.from(this.root.querySelectorAll<HTMLButtonElement>("[data-speed]")),
       stepButtons: Array.from(this.root.querySelectorAll<HTMLButtonElement>("[data-step]")),
+      gridButtons: Array.from(this.root.querySelectorAll<HTMLButtonElement>("[data-grid]")),
+      eclipticButton: query<HTMLButtonElement>("[data-action='toggle-ecliptic']"),
       phobosCanvas: query<HTMLCanvasElement>("[data-canvas='phobos']"),
       phobosMeta: query<HTMLElement>("[data-meta='phobos']"),
       deimosCanvas: query<HTMLCanvasElement>("[data-canvas='deimos']"),
@@ -286,6 +296,28 @@ export class MarsObserverApp {
       });
     });
 
+    this.elements.gridButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        const nextGridMode = button.dataset.grid;
+        if (nextGridMode !== "azimuthal" && nextGridMode !== "equatorial") {
+          return;
+        }
+        if (nextGridMode === "azimuthal") {
+          this.state.showAzimuthalGrid = !this.state.showAzimuthalGrid;
+        } else {
+          this.state.showEquatorialGrid = !this.state.showEquatorialGrid;
+        }
+        this.requestRender();
+        this.scheduleUrlSync();
+      });
+    });
+
+    this.elements.eclipticButton.addEventListener("click", () => {
+      this.state.showEcliptic = !this.state.showEcliptic;
+      this.requestRender();
+      this.scheduleUrlSync();
+    });
+
     window.addEventListener("mousemove", this.onMouseMove);
     window.addEventListener("mouseup", this.onMouseUp);
     window.addEventListener("resize", this.onResize);
@@ -301,6 +333,18 @@ export class MarsObserverApp {
       const speed = Number.parseFloat(button.dataset.speed ?? "0");
       button.classList.toggle("is-active", speed === this.state.speedSecondsPerSecond);
     });
+
+    this.elements.gridButtons.forEach((button) => {
+      const isActive =
+        button.dataset.grid === "azimuthal"
+          ? this.state.showAzimuthalGrid
+          : this.state.showEquatorialGrid;
+      button.classList.toggle("is-active", isActive);
+      button.setAttribute("aria-pressed", String(isActive));
+    });
+
+    this.elements.eclipticButton.classList.toggle("is-active", this.state.showEcliptic);
+    this.elements.eclipticButton.setAttribute("aria-pressed", String(this.state.showEcliptic));
 
     const updateMoonMeta = (body: SceneFrame["bodies"]["phobos"] | SceneFrame["bodies"]["deimos"], element: HTMLElement) => {
       const illumination = Math.round((body.illuminatedFraction ?? 0) * 100);
