@@ -37,6 +37,37 @@ describe("mars observer app", () => {
 
     const snapshot = app.getDebugSnapshot();
     expect(snapshot.renderStats.visibleStarCount).toBeGreaterThan(40);
+    expect(Object.keys(snapshot.frame.planets).sort()).toEqual([
+      "earth",
+      "jupiter",
+      "mercury",
+      "saturn",
+      "venus",
+    ]);
+    app.destroy();
+  });
+
+  test("draws visible planets when the camera faces them", () => {
+    const app = createMarsObserverApp(root, {
+      stars,
+      syncUrl: false,
+      initialState: {
+        simUtcMs: Date.parse("2026-04-06T12:00:00Z"),
+        yawDeg: 220,
+        pitchDeg: 25,
+      },
+    });
+
+    const snapshot = app.getDebugSnapshot();
+    const visibleNonPlanets = [
+      snapshot.frame.bodies.sun,
+      snapshot.frame.bodies.phobos,
+      snapshot.frame.bodies.deimos,
+    ].filter((body) => body.visible).length;
+    const visiblePlanets = Object.values(snapshot.frame.planets).filter((body) => body.visible).length;
+
+    expect(visiblePlanets).toBeGreaterThan(0);
+    expect(snapshot.renderStats.bodiesDrawn).toBeGreaterThan(visibleNonPlanets);
     app.destroy();
   });
 
@@ -106,6 +137,32 @@ describe("mars observer app", () => {
     expect(next.showAzimuthalGrid).toBe(true);
     expect(next.showEquatorialGrid).toBe(true);
     expect(next.showEcliptic).toBe(false);
+    app.destroy();
+  });
+
+  test("hud can be collapsed and restored", () => {
+    const app = createMarsObserverApp(root, {
+      stars,
+      syncUrl: false,
+    });
+    const toggleButton = root.querySelector("[data-action='toggle-hud']") as HTMLButtonElement;
+    const hudPanel = root.querySelector("[data-hud-panel]") as HTMLElement;
+
+    toggleButton.click();
+
+    let snapshot = app.getDebugSnapshot();
+    expect(snapshot.state.showHud).toBe(false);
+    expect(root.classList.contains("is-hud-hidden")).toBe(true);
+    expect(toggleButton.textContent).toBe("Show HUD");
+    expect(hudPanel.getAttribute("aria-hidden")).toBe("true");
+
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "h", bubbles: true }));
+
+    snapshot = app.getDebugSnapshot();
+    expect(snapshot.state.showHud).toBe(true);
+    expect(root.classList.contains("is-hud-hidden")).toBe(false);
+    expect(toggleButton.textContent).toBe("Hide HUD");
+    expect(hudPanel.getAttribute("aria-hidden")).toBe("false");
     app.destroy();
   });
 

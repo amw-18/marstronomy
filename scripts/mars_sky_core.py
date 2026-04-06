@@ -34,6 +34,8 @@ MARS_SOL_DURATION_SECONDS = MARS_SOL_DURATION_DAYS * 86400.0
 MARS_SIDEREAL_DAY_DAYS = 360.0 / MARS_PM_RATE_DEG_PER_DAY
 MARS_SIDEREAL_DAY_SECONDS = MARS_SIDEREAL_DAY_DAYS * 86400.0
 MARS_MEAN_HELIOCENTRIC_DISTANCE_AU = 1.52367934
+AU_KM = 149597870.7
+EARTH_ECLIPTIC_OBLIQUITY_J2000_DEG = 23.43928
 
 MARS24_PBS_TERMS: Sequence[Tuple[float, float, float]] = (
     (0.0071, 2.2353, 49.409),
@@ -51,6 +53,11 @@ DEFAULT_KEYFRAME_COUNT = 6
 DEFAULT_TIMELINE_DURATION_SOLS = 2.0
 
 SUN_COLOR = "#ffd54a"
+MERCURY_COLOR = "#d8d2c9"
+VENUS_COLOR = "#f8e2b3"
+EARTH_COLOR = "#7fb6ff"
+JUPITER_COLOR = "#efc18a"
+SATURN_COLOR = "#e8d6a1"
 PHOBOS_COLOR = "#ddd7cb"
 DEIMOS_COLOR = "#aeb9d1"
 MOON_DARK_COLOR = "#2e333d"
@@ -227,6 +234,27 @@ class MoonPhaseGeometry:
 
 
 @dataclass(frozen=True)
+class PlanetModel:
+    kind: str
+    name: str
+    color: str
+    semi_major_axis_au_0: float
+    semi_major_axis_au_rate: float
+    eccentricity_0: float
+    eccentricity_rate: float
+    inclination_deg_0: float
+    inclination_deg_rate: float
+    mean_longitude_deg_0: float
+    mean_longitude_deg_rate: float
+    longitude_of_perihelion_deg_0: float
+    longitude_of_perihelion_deg_rate: float
+    longitude_of_node_deg_0: float
+    longitude_of_node_deg_rate: float
+    absolute_magnitude: float
+    magnitude_model: str
+
+
+@dataclass(frozen=True)
 class MovingBody:
     kind: str
     name: str
@@ -244,6 +272,7 @@ class MovingBody:
     resolved_in_main_view: Optional[bool] = None
     shape_id: Optional[str] = None
     bright_angle_deg: Optional[float] = None
+    apparent_magnitude: Optional[float] = None
 
 
 PHOBOS_MODEL = MoonModel(
@@ -275,6 +304,134 @@ DEIMOS_MODEL = MoonModel(
 MOON_MODELS: Dict[str, MoonModel] = {
     PHOBOS_MODEL.kind: PHOBOS_MODEL,
     DEIMOS_MODEL.kind: DEIMOS_MODEL,
+}
+
+MERCURY_MODEL = PlanetModel(
+    kind="mercury",
+    name="Mercury",
+    color=MERCURY_COLOR,
+    semi_major_axis_au_0=0.38709927,
+    semi_major_axis_au_rate=0.00000037,
+    eccentricity_0=0.20563593,
+    eccentricity_rate=0.00001906,
+    inclination_deg_0=7.00497902,
+    inclination_deg_rate=-0.00594749,
+    mean_longitude_deg_0=252.25032350,
+    mean_longitude_deg_rate=149472.67411175,
+    longitude_of_perihelion_deg_0=77.45779628,
+    longitude_of_perihelion_deg_rate=0.16047689,
+    longitude_of_node_deg_0=48.33076593,
+    longitude_of_node_deg_rate=-0.12534081,
+    absolute_magnitude=-0.613,
+    magnitude_model="mercury",
+)
+
+VENUS_MODEL = PlanetModel(
+    kind="venus",
+    name="Venus",
+    color=VENUS_COLOR,
+    semi_major_axis_au_0=0.72333566,
+    semi_major_axis_au_rate=0.00000390,
+    eccentricity_0=0.00677672,
+    eccentricity_rate=-0.00004107,
+    inclination_deg_0=3.39467605,
+    inclination_deg_rate=-0.00078890,
+    mean_longitude_deg_0=181.97909950,
+    mean_longitude_deg_rate=58517.81538729,
+    longitude_of_perihelion_deg_0=131.60246718,
+    longitude_of_perihelion_deg_rate=0.00268329,
+    longitude_of_node_deg_0=76.67984255,
+    longitude_of_node_deg_rate=-0.27769418,
+    absolute_magnitude=-4.384,
+    magnitude_model="venus",
+)
+
+EARTH_MODEL = PlanetModel(
+    kind="earth",
+    name="Earth",
+    color=EARTH_COLOR,
+    semi_major_axis_au_0=1.00000261,
+    semi_major_axis_au_rate=0.00000562,
+    eccentricity_0=0.01671123,
+    eccentricity_rate=-0.00004392,
+    inclination_deg_0=-0.00001531,
+    inclination_deg_rate=-0.01294668,
+    mean_longitude_deg_0=100.46457166,
+    mean_longitude_deg_rate=35999.37244981,
+    longitude_of_perihelion_deg_0=102.93768193,
+    longitude_of_perihelion_deg_rate=0.32327364,
+    longitude_of_node_deg_0=0.0,
+    longitude_of_node_deg_rate=0.0,
+    absolute_magnitude=-3.99,
+    magnitude_model="earth",
+)
+
+MARS_ORBIT_MODEL = PlanetModel(
+    kind="mars",
+    name="Mars",
+    color="#ff8c6f",
+    semi_major_axis_au_0=1.52371034,
+    semi_major_axis_au_rate=0.00001847,
+    eccentricity_0=0.09339410,
+    eccentricity_rate=0.00007882,
+    inclination_deg_0=1.84969142,
+    inclination_deg_rate=-0.00813131,
+    mean_longitude_deg_0=-4.55343205,
+    mean_longitude_deg_rate=19140.30268499,
+    longitude_of_perihelion_deg_0=-23.94362959,
+    longitude_of_perihelion_deg_rate=0.44441088,
+    longitude_of_node_deg_0=49.55953891,
+    longitude_of_node_deg_rate=-0.29257343,
+    absolute_magnitude=-1.601,
+    magnitude_model="mars",
+)
+
+JUPITER_MODEL = PlanetModel(
+    kind="jupiter",
+    name="Jupiter",
+    color=JUPITER_COLOR,
+    semi_major_axis_au_0=5.20288700,
+    semi_major_axis_au_rate=-0.00011607,
+    eccentricity_0=0.04838624,
+    eccentricity_rate=-0.00013253,
+    inclination_deg_0=1.30439695,
+    inclination_deg_rate=-0.00183714,
+    mean_longitude_deg_0=34.39644051,
+    mean_longitude_deg_rate=3034.74612775,
+    longitude_of_perihelion_deg_0=14.72847983,
+    longitude_of_perihelion_deg_rate=0.21252668,
+    longitude_of_node_deg_0=100.47390909,
+    longitude_of_node_deg_rate=0.20469106,
+    absolute_magnitude=-9.395,
+    magnitude_model="jupiter",
+)
+
+SATURN_MODEL = PlanetModel(
+    kind="saturn",
+    name="Saturn",
+    color=SATURN_COLOR,
+    semi_major_axis_au_0=9.53667594,
+    semi_major_axis_au_rate=-0.00125060,
+    eccentricity_0=0.05386179,
+    eccentricity_rate=-0.00050991,
+    inclination_deg_0=2.48599187,
+    inclination_deg_rate=0.00193609,
+    mean_longitude_deg_0=49.95424423,
+    mean_longitude_deg_rate=1222.49362201,
+    longitude_of_perihelion_deg_0=92.59887831,
+    longitude_of_perihelion_deg_rate=-0.41897216,
+    longitude_of_node_deg_0=113.66242448,
+    longitude_of_node_deg_rate=-0.28867794,
+    absolute_magnitude=-8.88,
+    magnitude_model="saturn",
+)
+
+PLANET_MODELS: Dict[str, PlanetModel] = {
+    MERCURY_MODEL.kind: MERCURY_MODEL,
+    VENUS_MODEL.kind: VENUS_MODEL,
+    EARTH_MODEL.kind: EARTH_MODEL,
+    JUPITER_MODEL.kind: JUPITER_MODEL,
+    SATURN_MODEL.kind: SATURN_MODEL,
 }
 
 
@@ -366,6 +523,12 @@ def normalize_vector(vector: Sequence[float]) -> Tuple[float, float, float]:
 
 def scale_vector(vector: Sequence[float], scale: float) -> Tuple[float, float, float]:
     return (vector[0] * scale, vector[1] * scale, vector[2] * scale)
+
+
+def add_vectors(
+    a: Sequence[float], b: Sequence[float]
+) -> Tuple[float, float, float]:
+    return (a[0] + b[0], a[1] + b[1], a[2] + b[2])
 
 
 def subtract_vectors(
@@ -504,6 +667,32 @@ def inertial_to_body(
         dot(vector_inertial, x_body),
         dot(vector_inertial, y_body),
         dot(vector_inertial, z_body),
+    )
+
+
+def body_to_inertial(
+    vector_body: Sequence[float],
+    x_body: Sequence[float],
+    y_body: Sequence[float],
+    z_body: Sequence[float],
+) -> Tuple[float, float, float]:
+    return (
+        (vector_body[0] * x_body[0]) + (vector_body[1] * y_body[0]) + (vector_body[2] * z_body[0]),
+        (vector_body[0] * x_body[1]) + (vector_body[1] * y_body[1]) + (vector_body[2] * z_body[1]),
+        (vector_body[0] * x_body[2]) + (vector_body[1] * y_body[2]) + (vector_body[2] * z_body[2]),
+    )
+
+
+def ecliptic_to_equatorial(
+    vector_ecliptic: Sequence[float],
+) -> Tuple[float, float, float]:
+    obliquity = deg_to_rad(EARTH_ECLIPTIC_OBLIQUITY_J2000_DEG)
+    cos_obliquity = math.cos(obliquity)
+    sin_obliquity = math.sin(obliquity)
+    return (
+        vector_ecliptic[0],
+        (vector_ecliptic[1] * cos_obliquity) - (vector_ecliptic[2] * sin_obliquity),
+        (vector_ecliptic[1] * sin_obliquity) + (vector_ecliptic[2] * cos_obliquity),
     )
 
 
@@ -828,6 +1017,152 @@ def build_visible_stars(
     return visible
 
 
+def orbital_elements_for_time(
+    model: PlanetModel, jd_tt: float
+) -> Tuple[float, float, float, float, float, float]:
+    centuries = (jd_tt - JD_J2000) / JULIAN_CENTURY_DAYS
+    semi_major_axis_au = model.semi_major_axis_au_0 + (
+        model.semi_major_axis_au_rate * centuries
+    )
+    eccentricity = model.eccentricity_0 + (model.eccentricity_rate * centuries)
+    inclination_deg = model.inclination_deg_0 + (
+        model.inclination_deg_rate * centuries
+    )
+    mean_longitude_deg = wrap_degrees(
+        model.mean_longitude_deg_0 + (model.mean_longitude_deg_rate * centuries)
+    )
+    longitude_of_perihelion_deg = wrap_degrees(
+        model.longitude_of_perihelion_deg_0
+        + (model.longitude_of_perihelion_deg_rate * centuries)
+    )
+    longitude_of_node_deg = wrap_degrees(
+        model.longitude_of_node_deg_0 + (model.longitude_of_node_deg_rate * centuries)
+    )
+    mean_anomaly_deg = wrap_degrees_signed(
+        mean_longitude_deg - longitude_of_perihelion_deg
+    )
+    argument_of_perihelion_deg = wrap_degrees(
+        longitude_of_perihelion_deg - longitude_of_node_deg
+    )
+    return (
+        semi_major_axis_au,
+        eccentricity,
+        inclination_deg,
+        longitude_of_node_deg,
+        argument_of_perihelion_deg,
+        mean_anomaly_deg,
+    )
+
+
+def solve_kepler_equation(mean_anomaly_rad: float, eccentricity: float) -> float:
+    estimate = mean_anomaly_rad if eccentricity < 0.8 else math.pi
+    for _ in range(12):
+        delta = (
+            estimate - (eccentricity * math.sin(estimate)) - mean_anomaly_rad
+        ) / (1.0 - (eccentricity * math.cos(estimate)))
+        estimate -= delta
+        if abs(delta) < 1e-12:
+            break
+    return estimate
+
+
+def heliocentric_ecliptic_vector_au(
+    model: PlanetModel, jd_tt: float
+) -> Tuple[float, float, float]:
+    (
+        semi_major_axis_au,
+        eccentricity,
+        inclination_deg,
+        longitude_of_node_deg,
+        argument_of_perihelion_deg,
+        mean_anomaly_deg,
+    ) = orbital_elements_for_time(model, jd_tt)
+    mean_anomaly_rad = deg_to_rad(mean_anomaly_deg)
+    eccentric_anomaly_rad = solve_kepler_equation(mean_anomaly_rad, eccentricity)
+
+    x_orbit = semi_major_axis_au * (math.cos(eccentric_anomaly_rad) - eccentricity)
+    y_orbit = semi_major_axis_au * math.sqrt(1.0 - (eccentricity * eccentricity)) * math.sin(
+        eccentric_anomaly_rad
+    )
+
+    longitude_of_node_rad = deg_to_rad(longitude_of_node_deg)
+    argument_of_perihelion_rad = deg_to_rad(argument_of_perihelion_deg)
+    inclination_rad = deg_to_rad(inclination_deg)
+    cos_node = math.cos(longitude_of_node_rad)
+    sin_node = math.sin(longitude_of_node_rad)
+    cos_perihelion = math.cos(argument_of_perihelion_rad)
+    sin_perihelion = math.sin(argument_of_perihelion_rad)
+    cos_inclination = math.cos(inclination_rad)
+    sin_inclination = math.sin(inclination_rad)
+
+    return (
+        x_orbit * ((cos_node * cos_perihelion) - (sin_node * sin_perihelion * cos_inclination))
+        + y_orbit
+        * ((-cos_node * sin_perihelion) - (sin_node * cos_perihelion * cos_inclination)),
+        x_orbit * ((sin_node * cos_perihelion) + (cos_node * sin_perihelion * cos_inclination))
+        + y_orbit
+        * ((-sin_node * sin_perihelion) + (cos_node * cos_perihelion * cos_inclination)),
+        x_orbit * (sin_perihelion * sin_inclination)
+        + y_orbit * (cos_perihelion * sin_inclination),
+    )
+
+
+def heliocentric_equatorial_vector_au(
+    model: PlanetModel, jd_tt: float
+) -> Tuple[float, float, float]:
+    return ecliptic_to_equatorial(heliocentric_ecliptic_vector_au(model, jd_tt))
+
+
+def lambert_phase_function(phase_angle_deg: float) -> float:
+    phase_angle_rad = deg_to_rad(max(0.0, min(180.0, phase_angle_deg)))
+    value = (
+        math.sin(phase_angle_rad)
+        + ((math.pi - phase_angle_rad) * math.cos(phase_angle_rad))
+    ) / math.pi
+    return max(value, 1e-6)
+
+
+def planet_phase_correction_mag(model: PlanetModel, phase_angle_deg: float) -> float:
+    phase = max(0.0, min(180.0, phase_angle_deg))
+    if model.magnitude_model == "mercury":
+        return (
+            0.0498 * phase
+            - (0.000488 * phase * phase)
+            + (0.00000302 * phase * phase * phase)
+        )
+    if model.magnitude_model == "venus":
+        return (
+            0.0009 * phase
+            + (0.000239 * phase * phase)
+            - (0.00000065 * phase * phase * phase)
+        )
+    if model.magnitude_model == "earth":
+        return -2.5 * math.log10(lambert_phase_function(phase))
+    if model.magnitude_model == "jupiter":
+        return 0.005 * phase
+    if model.magnitude_model == "saturn":
+        # Keep Saturn ringless for this phase: no opening-angle brightening yet.
+        return 0.044 * phase
+    return 0.0
+
+
+def planet_apparent_magnitude(
+    model: PlanetModel,
+    heliocentric_distance_au: float,
+    observer_distance_au: float,
+    phase_angle_deg: float,
+) -> float:
+    return (
+        model.absolute_magnitude
+        + (5.0 * math.log10(max(1e-6, heliocentric_distance_au * observer_distance_au)))
+        + planet_phase_correction_mag(model, phase_angle_deg)
+    )
+
+
+def planet_symbol_size_px(apparent_magnitude: float) -> float:
+    return max(2.1, min(marker_size_for_mag(apparent_magnitude) * 1.2, 9.2))
+
+
 def mars_solar_data(jd_tt: float, longitude_east_deg: float) -> MarsSolarData:
     delta_days = jd_tt - JD_J2000
     mean_anomaly_deg = wrap_degrees(19.3871 + (0.52402073 * delta_days))
@@ -1020,6 +1355,94 @@ def build_moon_body(
     )
 
 
+def build_planet_body(
+    model: PlanetModel,
+    jd_tt: float,
+    site: Site,
+) -> MovingBody:
+    target_heliocentric_equatorial = heliocentric_equatorial_vector_au(model, jd_tt)
+    mars_heliocentric_equatorial = heliocentric_equatorial_vector_au(MARS_ORBIT_MODEL, jd_tt)
+    mars_to_target_equatorial = subtract_vectors(
+        target_heliocentric_equatorial,
+        mars_heliocentric_equatorial,
+    )
+
+    pole_ra_deg, pole_dec_deg, prime_meridian_deg = mars_orientation(jd_tt)
+    x_body, y_body, z_body = mars_body_basis(
+        pole_ra_deg,
+        pole_dec_deg,
+        prime_meridian_deg,
+    )
+    observer_body_au = scale_vector(
+        observer_position_body(
+            site.latitude_deg,
+            site.longitude_east_deg,
+            site.radius_km,
+        ),
+        1.0 / AU_KM,
+    )
+    observer_inertial_au = body_to_inertial(
+        observer_body_au,
+        x_body,
+        y_body,
+        z_body,
+    )
+    topocentric_equatorial = subtract_vectors(
+        mars_to_target_equatorial,
+        observer_inertial_au,
+    )
+    topocentric_body = inertial_to_body(
+        topocentric_equatorial,
+        x_body,
+        y_body,
+        z_body,
+    )
+    east, north, up = local_basis(site.latitude_deg, site.longitude_east_deg)
+    alt_deg, az_deg = vector_to_alt_az(topocentric_body, east, north, up)
+
+    heliocentric_distance_au = vector_norm(target_heliocentric_equatorial)
+    observer_distance_au = vector_norm(topocentric_equatorial)
+    phase_angle_deg = math.degrees(
+        math.acos(
+            clamp_unit(
+                dot(
+                    normalize_vector(scale_vector(target_heliocentric_equatorial, -1.0)),
+                    normalize_vector(
+                        subtract_vectors(
+                            mars_heliocentric_equatorial,
+                            target_heliocentric_equatorial,
+                        )
+                    ),
+                )
+            )
+        )
+    )
+    illuminated_fraction = max(
+        0.0,
+        min(1.0, 0.5 * (1.0 + math.cos(deg_to_rad(phase_angle_deg)))),
+    )
+    apparent_magnitude = planet_apparent_magnitude(
+        model,
+        heliocentric_distance_au=heliocentric_distance_au,
+        observer_distance_au=observer_distance_au,
+        phase_angle_deg=phase_angle_deg,
+    )
+
+    return MovingBody(
+        kind=model.kind,
+        name=model.name,
+        alt_deg=alt_deg,
+        az_deg=az_deg,
+        visible=alt_deg > 0.0,
+        symbol_size_px=planet_symbol_size_px(apparent_magnitude),
+        color=model.color,
+        distance_au=observer_distance_au,
+        phase_angle_deg=phase_angle_deg,
+        illuminated_fraction=illuminated_fraction,
+        apparent_magnitude=apparent_magnitude,
+    )
+
+
 def star_opacity_from_sun_altitude(sun_alt_deg: float) -> float:
     if sun_alt_deg <= -18.0:
         return 1.0
@@ -1068,17 +1491,23 @@ def moving_body_to_dict(body: MovingBody) -> Dict[str, Any]:
         payload["resolved_in_main_view"] = body.resolved_in_main_view
     if body.shape_id is not None:
         payload["shape_id"] = body.shape_id
+    if body.apparent_magnitude is not None:
+        payload["apparent_magnitude"] = round(body.apparent_magnitude, 6)
     return payload
 
 
 def scene_bodies_for_time(
     dt_utc: datetime,
     site: Site,
-) -> Tuple[MarsSolarData, MovingBody, MovingBody, MovingBody]:
+) -> Tuple[MarsSolarData, MovingBody, Dict[str, MovingBody], MovingBody, MovingBody]:
     jd_tt = datetime_to_jd_tt(dt_utc)
     solar_data = mars_solar_data(jd_tt, site.longitude_east_deg)
     sun_direction = sun_direction_body(solar_data)
     sun = build_sun_body(solar_data, site.latitude_deg, site.longitude_east_deg)
+    planets = {
+        kind: build_planet_body(model, jd_tt, site)
+        for kind, model in PLANET_MODELS.items()
+    }
     phobos = build_moon_body(
         PHOBOS_MODEL,
         jd_tt,
@@ -1095,14 +1524,14 @@ def scene_bodies_for_time(
         sun_direction_body=sun_direction,
         observer_radius_km=site.radius_km,
     )
-    return solar_data, sun, phobos, deimos
+    return solar_data, sun, planets, phobos, deimos
 
 
 def timeline_frame(
     dt_utc: datetime,
     site: Site,
 ) -> Dict[str, Any]:
-    _, sun, phobos, deimos = scene_bodies_for_time(dt_utc, site)
+    _, sun, planets, phobos, deimos = scene_bodies_for_time(dt_utc, site)
     star_opacity = star_opacity_from_sun_altitude(sun.alt_deg)
     return {
         "utc": utc_isoformat(dt_utc),
@@ -1110,8 +1539,13 @@ def timeline_frame(
         "sun_az_deg": round(sun.az_deg, 6),
         "sun_visible": sun.visible,
         "star_opacity": round(star_opacity, 4),
+        "planets": {
+            kind: moving_body_to_dict(body)
+            for kind, body in planets.items()
+        },
         "moving_bodies": [
             moving_body_to_dict(sun),
+            *(moving_body_to_dict(planets[kind]) for kind in PLANET_MODELS),
             moving_body_to_dict(phobos),
             moving_body_to_dict(deimos),
         ],
@@ -1253,7 +1687,9 @@ def build_visibility_aware_keyframe_indices(
 def approximation_notes() -> List[str]:
     return [
         "Sun uses NASA Mars24 seasonal and time-of-day formulas.",
+        "Mercury, Venus, Earth, Jupiter, and Saturn use JPL approximate heliocentric elements with lightweight phase-brightness curves.",
         "Phobos and Deimos use circular, equatorial Mars-body-frame motion with fixed J2000 phase seeds.",
+        "Planet magnitudes are approximate and omit atmosphere, extinction, and Saturn ring-opening brightening.",
         "Moon positions are topocentric, using observer-to-moon vectors instead of infinite-distance directions.",
         "Moon phases use synchronous-rotation lighting and clipped irregular silhouettes in SVG.",
         "No SPICE kernels, eclipses, transits, refraction, or photometric atmosphere are modeled.",
@@ -1700,7 +2136,14 @@ def render_sky_svg(
         az = deg_to_rad(body.az_deg)
         x = cx + r * math.sin(az)
         y = cy - r * math.cos(az)
-        opacity = 1.0 if body.kind == "sun" else moon_opacity
+        is_planet = body.kind in PLANET_MODELS
+        if body.kind == "sun":
+            opacity = 1.0
+        elif is_planet:
+            apparent_magnitude = body.apparent_magnitude if body.apparent_magnitude is not None else 2.0
+            opacity = min(1.0, max(0.25, 1.1 - (apparent_magnitude / 9.0))) * global_star_opacity
+        else:
+            opacity = moon_opacity
         if body.kind == "sun":
             stroke = "#fff4d0"
             glow_radius = body.symbol_size_px * 1.7
@@ -1735,6 +2178,16 @@ def render_sky_svg(
                         opacity=opacity,
                     )
                 )
+        else:
+            glow_radius = body.symbol_size_px * 1.8
+            content_lines.append(
+                f'<circle cx="{x:.2f}" cy="{y:.2f}" r="{glow_radius:.2f}" '
+                f'fill="{body.color}" opacity="{min(0.24, opacity * 0.32):.3f}" filter="url(#glow)"/>'
+            )
+            content_lines.append(
+                f'<circle cx="{x:.2f}" cy="{y:.2f}" r="{body.symbol_size_px:.2f}" '
+                f'fill="{body.color}" opacity="{opacity:.3f}"/>'
+            )
         label_fill = "#fff6d8" if body.kind == "sun" else "#e8eefc"
         content_lines.append(
             f'<text x="{x + 12.0:.2f}" y="{y - 12.0:.2f}" fill="{label_fill}" '

@@ -43,9 +43,12 @@ DEFAULT_CATALOG_PATH = ROOT / CATALOG_DEFAULT
 DEFAULT_STARS_OUT = ROOT / "web/public/data/stars.min.json"
 DEFAULT_FIXTURE_OUT = ROOT / "web/src/fixtures/mars-reference.json"
 REFERENCE_TIMESTAMPS: Sequence[str] = (
+    "2026-01-15T18:00:00Z",
     DEFAULT_SCENE_START_UTC,
     "2026-04-06T12:00:00Z",
+    "2026-07-15T00:00:00Z",
     "2026-04-07T06:00:00Z",
+    "2026-10-07T06:00:00Z",
 )
 
 
@@ -96,6 +99,8 @@ def body_payload(body: Any) -> Dict[str, Any]:
         payload["apparent_diameter_arcmin"] = round(body.apparent_diameter_arcmin, 6)
     if body.resolved_in_main_view is not None:
         payload["resolved_in_main_view"] = body.resolved_in_main_view
+    if body.apparent_magnitude is not None:
+        payload["apparent_magnitude"] = round(body.apparent_magnitude, 6)
     return payload
 
 
@@ -105,12 +110,16 @@ def export_reference_fixtures() -> Dict[str, Any]:
 
     for utc_text in REFERENCE_TIMESTAMPS:
         dt_utc = parse_iso_utc(utc_text)
-        solar, sun, phobos, deimos = scene_bodies_for_time(dt_utc, site)
+        solar, sun, planets, phobos, deimos = scene_bodies_for_time(dt_utc, site)
         cases.append(
             {
                 "utc": utc_isoformat(dt_utc),
                 "ltst_hours": round(solar.ltst_hours, 6),
                 "sun": body_payload(sun),
+                "planets": {
+                    kind: body_payload(body)
+                    for kind, body in planets.items()
+                },
                 "phobos": body_payload(phobos),
                 "deimos": body_payload(deimos),
             }

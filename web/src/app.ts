@@ -24,6 +24,8 @@ interface CreateAppOptions {
 
 interface ElementRefs {
   canvas: HTMLCanvasElement;
+  hudPanels: HTMLElement[];
+  hudToggleButton: HTMLButtonElement;
   utcInput: HTMLInputElement;
   marsClockValue: HTMLElement;
   speedValue: HTMLElement;
@@ -67,6 +69,21 @@ export class MarsObserverApp {
 
   private readonly onResize = () => {
     this.requestRender();
+  };
+
+  private readonly onKeyDown = (event: KeyboardEvent) => {
+    if (event.defaultPrevented || event.repeat || event.key.toLowerCase() !== "h") {
+      return;
+    }
+    const target = event.target;
+    if (
+      target instanceof HTMLInputElement ||
+      target instanceof HTMLTextAreaElement ||
+      (target instanceof HTMLElement && target.isContentEditable)
+    ) {
+      return;
+    }
+    this.toggleHud();
   };
 
   private readonly onMouseMove = (event: MouseEvent) => {
@@ -138,7 +155,10 @@ export class MarsObserverApp {
   private template(): string {
     return `
       <canvas class="viewer-canvas"></canvas>
-      <section class="hud-panel hud-panel--top hud-panel--meta">
+      <button class="ghost-button hud-toggle" data-action="toggle-hud" type="button" title="Toggle HUD (H)">
+        Hide HUD
+      </button>
+      <section class="hud-panel hud-panel--top hud-panel--meta" data-hud-panel>
         <div class="hud-copy">
           <p class="eyebrow">Mars Observer</p>
           <h1>Olympus Mons Sky</h1>
@@ -160,7 +180,7 @@ export class MarsObserverApp {
           <button class="ghost-button" data-action="reset-view" type="button">Reset view</button>
         </div>
       </section>
-      <section class="hud-panel hud-panel--bottom hud-panel--controls">
+      <section class="hud-panel hud-panel--bottom hud-panel--controls" data-hud-panel>
         <div class="controls-row">
           <button class="primary-button" data-action="toggle-play" type="button">Play</button>
           ${STEP_BUTTONS.map(
@@ -181,7 +201,7 @@ export class MarsObserverApp {
           <button class="speed-chip" data-action="toggle-ecliptic" type="button">Ecliptic</button>
         </div>
       </section>
-      <section class="hud-panel hud-panel--moon">
+      <section class="hud-panel hud-panel--moon" data-hud-panel>
         <p class="eyebrow">Moon Phases</p>
         <div class="moon-card" data-body="phobos">
           <canvas class="moon-canvas" data-canvas="phobos"></canvas>
@@ -206,6 +226,8 @@ export class MarsObserverApp {
 
     return {
       canvas: query<HTMLCanvasElement>("canvas.viewer-canvas"),
+      hudPanels: Array.from(this.root.querySelectorAll<HTMLElement>("[data-hud-panel]")),
+      hudToggleButton: query<HTMLButtonElement>("[data-action='toggle-hud']"),
       utcInput: query<HTMLInputElement>("input.utc-input"),
       marsClockValue: query<HTMLElement>("[data-role='mars-clock']"),
       speedValue: query<HTMLElement>("[data-role='speed-value']"),
@@ -246,6 +268,10 @@ export class MarsObserverApp {
       },
       { passive: false },
     );
+
+    this.elements.hudToggleButton.addEventListener("click", () => {
+      this.toggleHud();
+    });
 
     this.elements.playButton.addEventListener("click", () => {
       if (!this.state.playing && this.state.speedSecondsPerSecond === 0) {
@@ -321,9 +347,17 @@ export class MarsObserverApp {
     window.addEventListener("mousemove", this.onMouseMove);
     window.addEventListener("mouseup", this.onMouseUp);
     window.addEventListener("resize", this.onResize);
+    window.addEventListener("keydown", this.onKeyDown);
   }
 
   private updateHud(): void {
+    this.root.classList.toggle("is-hud-hidden", !this.state.showHud);
+    this.elements.hudPanels.forEach((panel) => {
+      panel.setAttribute("aria-hidden", String(!this.state.showHud));
+    });
+    this.elements.hudToggleButton.textContent = this.state.showHud ? "Hide HUD" : "Show HUD";
+    this.elements.hudToggleButton.setAttribute("aria-pressed", String(this.state.showHud));
+
     this.elements.utcInput.value = formatUtcInputValue(this.state.simUtcMs);
     this.elements.marsClockValue.textContent = formatMarsClock(this.frame.solarData.ltstHours);
     this.elements.speedValue.textContent = `${this.state.speedSecondsPerSecond} s/s`;
@@ -358,6 +392,12 @@ export class MarsObserverApp {
 
     updateMoonMeta(this.frame.bodies.phobos, this.elements.phobosMeta);
     updateMoonMeta(this.frame.bodies.deimos, this.elements.deimosMeta);
+  }
+
+  private toggleHud(): void {
+    this.state.showHud = !this.state.showHud;
+    this.updateHud();
+    this.scheduleUrlSync();
   }
 
   private renderNow(): void {
@@ -424,6 +464,7 @@ export class MarsObserverApp {
     window.removeEventListener("mousemove", this.onMouseMove);
     window.removeEventListener("mouseup", this.onMouseUp);
     window.removeEventListener("resize", this.onResize);
+    window.removeEventListener("keydown", this.onKeyDown);
     this.root.innerHTML = "";
   }
 }

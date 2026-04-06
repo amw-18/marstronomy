@@ -353,6 +353,27 @@ function drawTextHalo(
   ctx.restore();
 }
 
+function drawPointSource(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  size: number,
+  color: string,
+  alpha: number,
+): void {
+  ctx.save();
+  ctx.fillStyle = color;
+  ctx.globalAlpha = alpha;
+  if (size < 1.8) {
+    ctx.fillRect(x - size * 0.5, y - size * 0.5, size, size);
+  } else {
+    ctx.beginPath();
+    ctx.arc(x, y, size * 0.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
 function traceSmoothClosedPath(
   ctx: CanvasRenderingContext2D,
   points: Point2[],
@@ -633,17 +654,7 @@ function drawStars(
     }
     const size = markerSizeForMagnitude(star.m) * Math.pow(fovScale, 0.58);
     const alpha = clamp(frame.starOpacity * (0.35 + size / 8), 0.06, 1);
-    ctx.save();
-    ctx.fillStyle = star.rgb;
-    ctx.globalAlpha = alpha;
-    if (size < 1.8) {
-      ctx.fillRect(projected.x - size * 0.5, projected.y - size * 0.5, size, size);
-    } else {
-      ctx.beginPath();
-      ctx.arc(projected.x, projected.y, size * 0.5, 0, Math.PI * 2);
-      ctx.fill();
-    }
-    ctx.restore();
+    drawPointSource(ctx, projected.x, projected.y, size, star.rgb, alpha);
     visibleCount += 1;
   }
   return visibleCount;
@@ -657,7 +668,12 @@ function drawMovingBodies(
   height: number,
 ): RenderStats {
   const fovScale = 75 / state.fovDeg;
-  const bodies = [frame.bodies.sun, frame.bodies.phobos, frame.bodies.deimos];
+  const bodies = [
+    frame.bodies.sun,
+    ...Object.values(frame.planets),
+    frame.bodies.phobos,
+    frame.bodies.deimos,
+  ];
   let bodiesDrawn = 0;
 
   for (const body of bodies) {
@@ -674,6 +690,11 @@ function drawMovingBodies(
 
     if (body.kind === "sun") {
       drawSunGlyph(ctx, body, projected.x, projected.y, body.symbolSizePx * 0.5 * fovScale);
+    } else if (body.kind !== "phobos" && body.kind !== "deimos") {
+      const magnitude = body.apparentMagnitude ?? 2;
+      const size = markerSizeForMagnitude(magnitude) * Math.pow(fovScale, 0.58);
+      const opacity = clamp(frame.starOpacity * (0.38 + size / 8.5), 0.08, 1);
+      drawPointSource(ctx, projected.x, projected.y, size, mixColor(body.color, "#f7f9ff", 0.72), opacity);
     } else {
       const opacity = frame.moonOpacity;
       const radius = Math.max(2.8, body.symbolSizePx * 0.5 * fovScale);
@@ -688,7 +709,13 @@ function drawMovingBodies(
       ctx,
       body.name,
       projected.x,
-      projected.y - Math.max(18, body.symbolSizePx * 0.9 * fovScale),
+      projected.y -
+        Math.max(
+          16,
+          body.kind !== "sun" && body.kind !== "phobos" && body.kind !== "deimos"
+            ? markerSizeForMagnitude(body.apparentMagnitude ?? 2) * Math.pow(fovScale, 0.58) * 5
+            : body.symbolSizePx * 0.9 * fovScale,
+        ),
       "#eef3ff",
       "600 12px 'Trebuchet MS', sans-serif",
     );
