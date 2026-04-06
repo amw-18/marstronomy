@@ -3,6 +3,7 @@ from __future__ import annotations
 import pathlib
 import sys
 import unittest
+import math
 from datetime import timedelta
 
 
@@ -17,9 +18,11 @@ from scripts.mars_sky_core import (
     DEFAULT_TIMELINE_FRAME_COUNT,
     DEFAULT_UTC,
     DEIMOS_MODEL,
+    PLANET_MODELS,
     PHOBOS_MODEL,
     build_keyframe_indices,
     build_moon_body,
+    build_planet_body,
     build_scene_timeline,
     build_sun_body,
     build_visibility_aware_keyframe_indices,
@@ -36,6 +39,27 @@ from scripts.mars_sky_core import (
 
 
 class MarsSkyCoreTests(unittest.TestCase):
+    def test_scoped_planets_are_exported_in_scene_frames(self) -> None:
+        site = default_site()
+        frames = build_scene_timeline(
+            start_utc=parse_iso_utc(DEFAULT_SCENE_START_UTC),
+            site=site,
+            duration_sols=DEFAULT_TIMELINE_DURATION_SOLS,
+            frame_count=DEFAULT_TIMELINE_FRAME_COUNT,
+        )
+        frame = frames[0]
+
+        self.assertEqual(
+            set(frame["planets"].keys()),
+            {"mercury", "venus", "earth", "jupiter", "saturn"},
+        )
+        self.assertNotIn("uranus", frame["planets"])
+        self.assertNotIn("neptune", frame["planets"])
+        self.assertEqual(
+            {body["kind"] for body in frame["moving_bodies"]},
+            {"sun", "mercury", "venus", "earth", "jupiter", "saturn", "phobos", "deimos"},
+        )
+
     def test_mars24_worked_example_matches_reference(self) -> None:
         dt_utc = parse_iso_utc("2000-01-06T00:00:00Z")
         jd_tt = datetime_to_jd_tt(dt_utc)
@@ -175,12 +199,70 @@ class MarsSkyCoreTests(unittest.TestCase):
         self.assertIn("sun_alt_deg", frames[0])
         self.assertIn("star_opacity", frames[0])
         self.assertEqual(
+            set(frames[0]["planets"].keys()),
+            set(PLANET_MODELS.keys()),
+        )
+        self.assertEqual(
             {body["kind"] for body in frames[0]["moving_bodies"]},
-            {"sun", "phobos", "deimos"},
+            {"sun", "mercury", "venus", "earth", "jupiter", "saturn", "phobos", "deimos"},
         )
         self.assertGreater(visibility_summary["deimos"]["visible_frame_count"], 0)
         self.assertGreater(visibility_summary["deimos"]["keyframe_visible_count"], 0)
         self.assertEqual(warnings, [])
+
+    def test_planet_bodies_have_reasonable_geometry(self) -> None:
+        site = default_site()
+        jd_tt = datetime_to_jd_tt(parse_iso_utc(DEFAULT_SCENE_START_UTC))
+        previous_jupiter = build_planet_body(PLANET_MODELS["jupiter"], jd_tt, site)
+
+        for kind, model in PLANET_MODELS.items():
+            body = build_planet_body(model, jd_tt, site)
+            self.assertGreaterEqual(body.illuminated_fraction or 0.0, 0.0)
+            self.assertLessEqual(body.illuminated_fraction or 0.0, 1.0)
+            self.assertIsNotNone(body.distance_au)
+            self.assertGreater(body.distance_au or 0.0, 0.0)
+            self.assertIsNotNone(body.apparent_magnitude)
+
+        later = build_planet_body(
+            PLANET_MODELS["jupiter"],
+            jd_tt + 7.0,
+            site,
+        )
+        self.assertLess(
+            abs((later.apparent_magnitude or 0.0) - (previous_jupiter.apparent_magnitude or 0.0)),
+            0.5,
+        )
+
+    def test_mercury_can_be_visible_while_staying_close_to_the_sun(self) -> None:
+        def angular_separation_deg(a_alt: float, a_az: float, b_alt: float, b_az: float) -> float:
+            a_alt_rad = math.radians(a_alt)
+            b_alt_rad = math.radians(b_alt)
+            delta_az_rad = math.radians(a_az - b_az)
+            cosine = (
+                (math.sin(a_alt_rad) * math.sin(b_alt_rad))
+                + (math.cos(a_alt_rad) * math.cos(b_alt_rad) * math.cos(delta_az_rad))
+            )
+            return math.degrees(math.acos(max(-1.0, min(1.0, cosine))))
+
+        site = default_site()
+        start = parse_iso_utc("2026-01-01T00:00:00Z")
+        for step_index in range(0, 365 * 6):
+            dt_utc = start + timedelta(hours=4 * step_index)
+            jd_tt = datetime_to_jd_tt(dt_utc)
+            solar = mars_solar_data(jd_tt, site.longitude_east_deg)
+            sun = build_sun_body(solar, site.latitude_deg, site.longitude_east_deg)
+            mercury = build_planet_body(PLANET_MODELS["mercury"], jd_tt, site)
+            separation_deg = angular_separation_deg(
+                mercury.alt_deg,
+                mercury.az_deg,
+                sun.alt_deg,
+                sun.az_deg,
+            )
+            if mercury.visible and separation_deg < 28.0:
+                self.assertIsNotNone(mercury.apparent_magnitude)
+                self.assertLess(separation_deg, 28.0)
+                return
+        self.fail("Could not find a Mercury sample that is visible yet still close to the Sun.")
 
     def test_default_scene_resolves_phobos_but_not_deimos_in_main_view(self) -> None:
         site = default_site()

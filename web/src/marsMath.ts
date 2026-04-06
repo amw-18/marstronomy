@@ -1,11 +1,17 @@
 import {
+  EARTH_COLOR,
+  JUPITER_COLOR,
+  MERCURY_COLOR,
   DEIMOS_COLOR,
   DEIMOS_SILHOUETTE_POINTS,
   DEFAULT_SITE,
   MOON_DARK_COLOR,
+  PLANET_KINDS,
   PHOBOS_COLOR,
   PHOBOS_SILHOUETTE_POINTS,
+  SATURN_COLOR,
   SUN_COLOR,
+  VENUS_COLOR,
 } from "./constants";
 import type {
   MarsCelestialBasis,
@@ -13,6 +19,8 @@ import type {
   MoonModel,
   MoonPhaseGeometry,
   MovingBody,
+  PlanetKind,
+  PlanetModel,
   Point2,
   RuntimeStar,
   SceneFrame,
@@ -20,7 +28,12 @@ import type {
   Vec3,
 } from "./types";
 
+interface OrbitalModel extends Omit<PlanetModel, "kind"> {
+  kind: PlanetKind | "mars";
+}
+
 const TT_MINUS_UTC_SECONDS_DEFAULT = 69.184;
+const AU_KM = 149597870.7;
 const EARTH_ECLIPTIC_OBLIQUITY_J2000_DEG = 23.439291111;
 const MARS_ORBIT_INCLINATION_J2000_DEG = 1.85061;
 const MARS_ORBIT_ASCENDING_NODE_J2000_DEG = 49.57854;
@@ -102,6 +115,134 @@ export const DEIMOS_MODEL: MoonModel = {
   triaxialAxesKm: [15, 12, 11],
   shapeId: "deimos-potato-v1",
   silhouettePoints: DEIMOS_SILHOUETTE_POINTS,
+};
+
+export const MERCURY_MODEL: PlanetModel = {
+  kind: "mercury",
+  name: "Mercury",
+  color: MERCURY_COLOR,
+  semiMajorAxisAu0: 0.38709927,
+  semiMajorAxisAuRate: 0.00000037,
+  eccentricity0: 0.20563593,
+  eccentricityRate: 0.00001906,
+  inclinationDeg0: 7.00497902,
+  inclinationDegRate: -0.00594749,
+  meanLongitudeDeg0: 252.2503235,
+  meanLongitudeDegRate: 149472.67411175,
+  longitudeOfPerihelionDeg0: 77.45779628,
+  longitudeOfPerihelionDegRate: 0.16047689,
+  longitudeOfNodeDeg0: 48.33076593,
+  longitudeOfNodeDegRate: -0.12534081,
+  absoluteMagnitude: -0.613,
+  magnitudeModel: "mercury",
+};
+
+export const VENUS_MODEL: PlanetModel = {
+  kind: "venus",
+  name: "Venus",
+  color: VENUS_COLOR,
+  semiMajorAxisAu0: 0.72333566,
+  semiMajorAxisAuRate: 0.0000039,
+  eccentricity0: 0.00677672,
+  eccentricityRate: -0.00004107,
+  inclinationDeg0: 3.39467605,
+  inclinationDegRate: -0.0007889,
+  meanLongitudeDeg0: 181.9790995,
+  meanLongitudeDegRate: 58517.81538729,
+  longitudeOfPerihelionDeg0: 131.60246718,
+  longitudeOfPerihelionDegRate: 0.00268329,
+  longitudeOfNodeDeg0: 76.67984255,
+  longitudeOfNodeDegRate: -0.27769418,
+  absoluteMagnitude: -4.384,
+  magnitudeModel: "venus",
+};
+
+export const EARTH_MODEL: PlanetModel = {
+  kind: "earth",
+  name: "Earth",
+  color: EARTH_COLOR,
+  semiMajorAxisAu0: 1.00000261,
+  semiMajorAxisAuRate: 0.00000562,
+  eccentricity0: 0.01671123,
+  eccentricityRate: -0.00004392,
+  inclinationDeg0: -0.00001531,
+  inclinationDegRate: -0.01294668,
+  meanLongitudeDeg0: 100.46457166,
+  meanLongitudeDegRate: 35999.37244981,
+  longitudeOfPerihelionDeg0: 102.93768193,
+  longitudeOfPerihelionDegRate: 0.32327364,
+  longitudeOfNodeDeg0: 0,
+  longitudeOfNodeDegRate: 0,
+  absoluteMagnitude: -3.99,
+  magnitudeModel: "earth",
+};
+
+const MARS_ORBIT_MODEL: OrbitalModel = {
+  kind: "mars",
+  name: "Mars",
+  color: "#ff8c6f",
+  semiMajorAxisAu0: 1.52371034,
+  semiMajorAxisAuRate: 0.00001847,
+  eccentricity0: 0.0933941,
+  eccentricityRate: 0.00007882,
+  inclinationDeg0: 1.84969142,
+  inclinationDegRate: -0.00813131,
+  meanLongitudeDeg0: -4.55343205,
+  meanLongitudeDegRate: 19140.30268499,
+  longitudeOfPerihelionDeg0: -23.94362959,
+  longitudeOfPerihelionDegRate: 0.44441088,
+  longitudeOfNodeDeg0: 49.55953891,
+  longitudeOfNodeDegRate: -0.29257343,
+  absoluteMagnitude: -1.601,
+  magnitudeModel: "mars",
+};
+
+export const JUPITER_MODEL: PlanetModel = {
+  kind: "jupiter",
+  name: "Jupiter",
+  color: JUPITER_COLOR,
+  semiMajorAxisAu0: 5.202887,
+  semiMajorAxisAuRate: -0.00011607,
+  eccentricity0: 0.04838624,
+  eccentricityRate: -0.00013253,
+  inclinationDeg0: 1.30439695,
+  inclinationDegRate: -0.00183714,
+  meanLongitudeDeg0: 34.39644051,
+  meanLongitudeDegRate: 3034.74612775,
+  longitudeOfPerihelionDeg0: 14.72847983,
+  longitudeOfPerihelionDegRate: 0.21252668,
+  longitudeOfNodeDeg0: 100.47390909,
+  longitudeOfNodeDegRate: 0.20469106,
+  absoluteMagnitude: -9.395,
+  magnitudeModel: "jupiter",
+};
+
+export const SATURN_MODEL: PlanetModel = {
+  kind: "saturn",
+  name: "Saturn",
+  color: SATURN_COLOR,
+  semiMajorAxisAu0: 9.53667594,
+  semiMajorAxisAuRate: -0.0012506,
+  eccentricity0: 0.05386179,
+  eccentricityRate: -0.00050991,
+  inclinationDeg0: 2.48599187,
+  inclinationDegRate: 0.00193609,
+  meanLongitudeDeg0: 49.95424423,
+  meanLongitudeDegRate: 1222.49362201,
+  longitudeOfPerihelionDeg0: 92.59887831,
+  longitudeOfPerihelionDegRate: -0.41897216,
+  longitudeOfNodeDeg0: 113.66242448,
+  longitudeOfNodeDegRate: -0.28867794,
+  absoluteMagnitude: -8.88,
+  magnitudeModel: "saturn",
+};
+
+export const PLANET_MODELS: Record<PlanetKind, PlanetModel> = {
+  mercury: MERCURY_MODEL,
+  venus: VENUS_MODEL,
+  earth: EARTH_MODEL,
+  jupiter: JUPITER_MODEL,
+  saturn: SATURN_MODEL,
 };
 
 export function wrapDegrees(value: number): number {
@@ -253,6 +394,135 @@ function eclipticToEquatorial(vectorEcliptic: Vec3): Vec3 {
     vectorEcliptic[1] * cosObliquity - vectorEcliptic[2] * sinObliquity,
     vectorEcliptic[1] * sinObliquity + vectorEcliptic[2] * cosObliquity,
   ];
+}
+
+function orbitalElementsForTime(
+  model: OrbitalModel,
+  jdTt: number,
+): {
+  semiMajorAxisAu: number;
+  eccentricity: number;
+  inclinationDeg: number;
+  longitudeOfNodeDeg: number;
+  argumentOfPerihelionDeg: number;
+  meanAnomalyDeg: number;
+} {
+  const centuries = (jdTt - JD_J2000) / JULIAN_CENTURY_DAYS;
+  const semiMajorAxisAu = model.semiMajorAxisAu0 + model.semiMajorAxisAuRate * centuries;
+  const eccentricity = model.eccentricity0 + model.eccentricityRate * centuries;
+  const inclinationDeg = model.inclinationDeg0 + model.inclinationDegRate * centuries;
+  const meanLongitudeDeg = wrapDegrees(model.meanLongitudeDeg0 + model.meanLongitudeDegRate * centuries);
+  const longitudeOfPerihelionDeg = wrapDegrees(
+    model.longitudeOfPerihelionDeg0 + model.longitudeOfPerihelionDegRate * centuries,
+  );
+  const longitudeOfNodeDeg = wrapDegrees(
+    model.longitudeOfNodeDeg0 + model.longitudeOfNodeDegRate * centuries,
+  );
+  return {
+    semiMajorAxisAu,
+    eccentricity,
+    inclinationDeg,
+    longitudeOfNodeDeg,
+    argumentOfPerihelionDeg: wrapDegrees(longitudeOfPerihelionDeg - longitudeOfNodeDeg),
+    meanAnomalyDeg: wrapDegreesSigned(meanLongitudeDeg - longitudeOfPerihelionDeg),
+  };
+}
+
+function solveKeplerEquation(meanAnomalyRad: number, eccentricity: number): number {
+  let estimate = eccentricity < 0.8 ? meanAnomalyRad : Math.PI;
+  for (let iteration = 0; iteration < 12; iteration += 1) {
+    const delta =
+      (estimate - eccentricity * Math.sin(estimate) - meanAnomalyRad) /
+      (1 - eccentricity * Math.cos(estimate));
+    estimate -= delta;
+    if (Math.abs(delta) < 1e-12) {
+      break;
+    }
+  }
+  return estimate;
+}
+
+function heliocentricEclipticVectorAu(model: OrbitalModel, jdTt: number): Vec3 {
+  const {
+    semiMajorAxisAu,
+    eccentricity,
+    inclinationDeg,
+    longitudeOfNodeDeg,
+    argumentOfPerihelionDeg,
+    meanAnomalyDeg,
+  } = orbitalElementsForTime(model, jdTt);
+  const meanAnomalyRad = degToRad(meanAnomalyDeg);
+  const eccentricAnomalyRad = solveKeplerEquation(meanAnomalyRad, eccentricity);
+  const xOrbit = semiMajorAxisAu * (Math.cos(eccentricAnomalyRad) - eccentricity);
+  const yOrbit =
+    semiMajorAxisAu *
+    Math.sqrt(1 - eccentricity * eccentricity) *
+    Math.sin(eccentricAnomalyRad);
+
+  const longitudeOfNodeRad = degToRad(longitudeOfNodeDeg);
+  const argumentOfPerihelionRad = degToRad(argumentOfPerihelionDeg);
+  const inclinationRad = degToRad(inclinationDeg);
+  const cosNode = Math.cos(longitudeOfNodeRad);
+  const sinNode = Math.sin(longitudeOfNodeRad);
+  const cosPerihelion = Math.cos(argumentOfPerihelionRad);
+  const sinPerihelion = Math.sin(argumentOfPerihelionRad);
+  const cosInclination = Math.cos(inclinationRad);
+  const sinInclination = Math.sin(inclinationRad);
+
+  return [
+    xOrbit * (cosNode * cosPerihelion - sinNode * sinPerihelion * cosInclination) +
+      yOrbit * (-cosNode * sinPerihelion - sinNode * cosPerihelion * cosInclination),
+    xOrbit * (sinNode * cosPerihelion + cosNode * sinPerihelion * cosInclination) +
+      yOrbit * (-sinNode * sinPerihelion + cosNode * cosPerihelion * cosInclination),
+    xOrbit * (sinPerihelion * sinInclination) + yOrbit * (cosPerihelion * sinInclination),
+  ];
+}
+
+function heliocentricEquatorialVectorAu(model: OrbitalModel, jdTt: number): Vec3 {
+  return eclipticToEquatorial(heliocentricEclipticVectorAu(model, jdTt));
+}
+
+function lambertPhaseFunction(phaseAngleDeg: number): number {
+  const phaseAngle = degToRad(clamp(phaseAngleDeg, 0, 180));
+  return Math.max(
+    1e-6,
+    (Math.sin(phaseAngle) + (Math.PI - phaseAngle) * Math.cos(phaseAngle)) / Math.PI,
+  );
+}
+
+function planetPhaseCorrectionMagnitude(model: PlanetModel, phaseAngleDeg: number): number {
+  const phase = clamp(phaseAngleDeg, 0, 180);
+  switch (model.magnitudeModel) {
+    case "mercury":
+      return 0.0498 * phase - 0.000488 * phase * phase + 0.00000302 * phase * phase * phase;
+    case "venus":
+      return 0.0009 * phase + 0.000239 * phase * phase - 0.00000065 * phase * phase * phase;
+    case "earth":
+      return -2.5 * Math.log10(lambertPhaseFunction(phase));
+    case "jupiter":
+      return 0.005 * phase;
+    case "saturn":
+      return 0.044 * phase;
+    default:
+      return 0;
+  }
+}
+
+function planetApparentMagnitude(
+  model: PlanetModel,
+  heliocentricDistanceAu: number,
+  observerDistanceAu: number,
+  phaseAngleDeg: number,
+): number {
+  return (
+    model.absoluteMagnitude +
+    5 * Math.log10(Math.max(1e-6, heliocentricDistanceAu * observerDistanceAu)) +
+    planetPhaseCorrectionMagnitude(model, phaseAngleDeg)
+  );
+}
+
+function planetSymbolSizePx(apparentMagnitude: number): number {
+  return clamp(markerSizeForMagnitude(apparentMagnitude) * 1.2, 2.1, 9.2);
 }
 
 function marsOrbitPole(): Vec3 {
@@ -636,6 +906,71 @@ function buildMoonBody(
   };
 }
 
+function buildPlanetBody(
+  model: PlanetModel,
+  jdTt: number,
+  site: Site,
+): MovingBody {
+  const targetHeliocentricEquatorial = heliocentricEquatorialVectorAu(model, jdTt);
+  const marsHeliocentricEquatorial = heliocentricEquatorialVectorAu(MARS_ORBIT_MODEL, jdTt);
+  const marsToTargetEquatorial = subtractVectors(
+    targetHeliocentricEquatorial,
+    marsHeliocentricEquatorial,
+  );
+
+  const [poleRaDeg, poleDecDeg, primeMeridianDeg] = marsOrientation(jdTt);
+  const [xBody, yBody, zBody] = marsBodyBasis(poleRaDeg, poleDecDeg, primeMeridianDeg);
+  const observerBodyAu = scaleVector(
+    observerPositionBody(site),
+    1 / AU_KM,
+  );
+  const observerInertialAu = bodyToInertial(observerBodyAu, xBody, yBody, zBody);
+  const topocentricEquatorial = subtractVectors(marsToTargetEquatorial, observerInertialAu);
+  const { east, north, up } = localBasis(site);
+  const topocentricBody = inertialToBody(topocentricEquatorial, xBody, yBody, zBody);
+  const localVector: Vec3 = [dot(topocentricBody, east), dot(topocentricBody, north), dot(topocentricBody, up)];
+  const [altDeg, azDeg] = altAzFromLocalVector(localVector);
+
+  const heliocentricDistanceAu = vectorNorm(targetHeliocentricEquatorial);
+  const observerDistanceAu = vectorNorm(topocentricEquatorial);
+  const phaseAngleDeg = radToDeg(
+    Math.acos(
+      clampUnit(
+        dot(
+          normalizeVector(scaleVector(targetHeliocentricEquatorial, -1)),
+          normalizeVector(subtractVectors(marsHeliocentricEquatorial, targetHeliocentricEquatorial)),
+        ),
+      ),
+    ),
+  );
+  const illuminatedFraction = clamp(
+    0.5 * (1 + Math.cos(degToRad(phaseAngleDeg))),
+    0,
+    1,
+  );
+  const apparentMagnitude = planetApparentMagnitude(
+    model,
+    heliocentricDistanceAu,
+    observerDistanceAu,
+    phaseAngleDeg,
+  );
+
+  return {
+    kind: model.kind,
+    name: model.name,
+    altDeg,
+    azDeg,
+    visible: altDeg > 0,
+    symbolSizePx: planetSymbolSizePx(apparentMagnitude),
+    color: model.color,
+    localVector,
+    distanceAu: observerDistanceAu,
+    phaseAngleDeg,
+    illuminatedFraction,
+    apparentMagnitude,
+  };
+}
+
 export function buildInertialToLocalRows(jdTt: number, site: Site): [Vec3, Vec3, Vec3] {
   const [poleRaDeg, poleDecDeg, primeMeridianDeg] = marsOrientation(jdTt);
   const [xBody, yBody, zBody] = marsBodyBasis(poleRaDeg, poleDecDeg, primeMeridianDeg);
@@ -702,12 +1037,16 @@ export function sceneFrameForTime(utcMs: number, site: Site = DEFAULT_SITE): Sce
   const sun = buildSunBody(solarData, east, north, up);
   const phobos = buildMoonBody(PHOBOS_MODEL, jdTt, site, east, north, up, sunDirection);
   const deimos = buildMoonBody(DEIMOS_MODEL, jdTt, site, east, north, up, sunDirection);
+  const planets = Object.fromEntries(
+    PLANET_KINDS.map((kind) => [kind, buildPlanetBody(PLANET_MODELS[kind], jdTt, site)]),
+  ) as Record<PlanetKind, MovingBody>;
 
   return {
     solarData,
     starOpacity: starOpacityFromSunAltitude(sun.altDeg),
     moonOpacity: moonOpacityFromSunAltitude(sun.altDeg),
     inertialToLocalRows: buildInertialToLocalRows(jdTt, site),
+    planets,
     bodies: { sun, phobos, deimos },
   };
 }

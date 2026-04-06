@@ -1,5 +1,7 @@
 export type Vec3 = [number, number, number];
 export type Point2 = [number, number];
+export type PlanetKind = "mercury" | "venus" | "earth" | "jupiter" | "saturn";
+export type BodyKind = "sun" | PlanetKind | "phobos" | "deimos";
 
 export interface RuntimeStar {
   h: number | null;
@@ -55,8 +57,28 @@ export interface MoonPhaseGeometry {
   resolvedInMainView: boolean;
 }
 
+export interface PlanetModel {
+  kind: PlanetKind;
+  name: string;
+  color: string;
+  semiMajorAxisAu0: number;
+  semiMajorAxisAuRate: number;
+  eccentricity0: number;
+  eccentricityRate: number;
+  inclinationDeg0: number;
+  inclinationDegRate: number;
+  meanLongitudeDeg0: number;
+  meanLongitudeDegRate: number;
+  longitudeOfPerihelionDeg0: number;
+  longitudeOfPerihelionDegRate: number;
+  longitudeOfNodeDeg0: number;
+  longitudeOfNodeDegRate: number;
+  absoluteMagnitude: number;
+  magnitudeModel: "mercury" | "venus" | "earth" | "jupiter" | "saturn" | "mars";
+}
+
 export interface MovingBody {
-  kind: "sun" | "phobos" | "deimos";
+  kind: BodyKind;
   name: string;
   altDeg: number;
   azDeg: number;
@@ -73,6 +95,7 @@ export interface MovingBody {
   resolvedInMainView?: boolean;
   shapeId?: string;
   brightAngleDeg?: number;
+  apparentMagnitude?: number;
 }
 
 export interface SceneFrame {
@@ -80,6 +103,7 @@ export interface SceneFrame {
   starOpacity: number;
   moonOpacity: number;
   inertialToLocalRows: [Vec3, Vec3, Vec3];
+  planets: Record<PlanetKind, MovingBody>;
   bodies: {
     sun: MovingBody;
     phobos: MovingBody;

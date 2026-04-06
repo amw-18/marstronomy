@@ -165,7 +165,7 @@ def render_keyframes(
             jd_tt=jd_tt,
             mag_limit=mag_limit,
         )
-        _, sun, phobos, deimos = scene_bodies_for_time(dt_utc, site)
+        _, sun, planets, phobos, deimos = scene_bodies_for_time(dt_utc, site)
         out_path = os.path.join(out_dir, f"keyframe_{ordinal:02d}.svg")
         render_sky_svg(
             output_path=out_path,
@@ -178,7 +178,7 @@ def render_keyframes(
                 f'frame {frame_index + 1}/{len(frames)}'
             ),
             star_opacity=frame["star_opacity"],
-            moving_bodies=[sun, phobos, deimos],
+            moving_bodies=[sun, *planets.values(), phobos, deimos],
             sun_altitude_deg=sun.alt_deg,
         )
         written_paths.append(out_path)

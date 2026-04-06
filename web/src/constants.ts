@@ -1,4 +1,4 @@
-import type { Point2, Site, ViewerState } from "./types";
+import type { PlanetKind, Point2, Site, ViewerState } from "./types";
 
 export const DEFAULT_START_UTC_ISO = "2026-04-06T00:00:00Z";
 
@@ -22,6 +22,7 @@ export const DEFAULT_SHOW_EQUATORIAL_GRID = false;
 export const DEFAULT_SHOW_ECLIPTIC = true;
 
 export const SPEED_PRESETS = [0, 1, 10, 60, 300, 1800, 7200] as const;
+export const PLANET_KINDS: PlanetKind[] = ["mercury", "venus", "earth", "jupiter", "saturn"];
 export const STEP_BUTTONS = [
   { label: "-10m", seconds: -600 },
   { label: "+10m", seconds: 600 },
@@ -42,6 +43,11 @@ export const DEFAULT_VIEWER_STATE = (): ViewerState => ({
 });
 
 export const SUN_COLOR = "#ffd54a";
+export const MERCURY_COLOR = "#d8d2c9";
+export const VENUS_COLOR = "#f8e2b3";
+export const EARTH_COLOR = "#7fb6ff";
+export const JUPITER_COLOR = "#efc18a";
+export const SATURN_COLOR = "#e8d6a1";
 export const PHOBOS_COLOR = "#ddd7cb";
 export const DEIMOS_COLOR = "#aeb9d1";
 export const MOON_DARK_COLOR = "#2e333d";

@@ -489,6 +489,31 @@ function drawUnresolvedMoonGlyph(
   ctx.restore();
 }
 
+function drawPlanetGlyph(
+  ctx: CanvasRenderingContext2D,
+  body: MovingBody,
+  centerX: number,
+  centerY: number,
+  radiusPx: number,
+  opacity: number,
+): void {
+  ctx.save();
+  ctx.fillStyle = body.color;
+  ctx.globalAlpha = Math.min(0.28, opacity * 0.34);
+  ctx.beginPath();
+  ctx.arc(centerX, centerY, radiusPx * 2.3, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+
+  ctx.save();
+  ctx.fillStyle = body.color;
+  ctx.globalAlpha = opacity;
+  ctx.beginPath();
+  ctx.arc(centerX, centerY, radiusPx, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
 function drawSunGlyph(
   ctx: CanvasRenderingContext2D,
   body: MovingBody,
@@ -657,7 +682,12 @@ function drawMovingBodies(
   height: number,
 ): RenderStats {
   const fovScale = 75 / state.fovDeg;
-  const bodies = [frame.bodies.sun, frame.bodies.phobos, frame.bodies.deimos];
+  const bodies = [
+    frame.bodies.sun,
+    ...Object.values(frame.planets),
+    frame.bodies.phobos,
+    frame.bodies.deimos,
+  ];
   let bodiesDrawn = 0;
 
   for (const body of bodies) {
@@ -674,6 +704,11 @@ function drawMovingBodies(
 
     if (body.kind === "sun") {
       drawSunGlyph(ctx, body, projected.x, projected.y, body.symbolSizePx * 0.5 * fovScale);
+    } else if (body.kind !== "phobos" && body.kind !== "deimos") {
+      const magnitude = body.apparentMagnitude ?? 2;
+      const opacity = clamp(frame.starOpacity * (0.42 + markerSizeForMagnitude(magnitude) / 7), 0.08, 1);
+      const radius = Math.max(1.7, body.symbolSizePx * 0.45 * fovScale);
+      drawPlanetGlyph(ctx, body, projected.x, projected.y, radius, opacity);
     } else {
       const opacity = frame.moonOpacity;
       const radius = Math.max(2.8, body.symbolSizePx * 0.5 * fovScale);

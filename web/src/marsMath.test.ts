@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
 
+import { PLANET_KINDS } from "./constants";
 import reference from "./fixtures/mars-reference.json";
 import {
   DEFAULT_SITE,
@@ -41,6 +42,21 @@ describe("mars browser math", () => {
         fixtureCase.deimos.illuminated_fraction,
         1e-4,
       );
+
+      for (const kind of PLANET_KINDS) {
+        expectNear(frame.planets[kind].altDeg, fixtureCase.planets[kind].alt_deg, 1e-4);
+        expectNear(frame.planets[kind].azDeg, fixtureCase.planets[kind].az_deg, 1e-4);
+        expectNear(
+          frame.planets[kind].illuminatedFraction ?? 0,
+          fixtureCase.planets[kind].illuminated_fraction,
+          1e-4,
+        );
+        expectNear(
+          frame.planets[kind].apparentMagnitude ?? 0,
+          fixtureCase.planets[kind].apparent_magnitude,
+          1e-4,
+        );
+      }
     }
   });
 
@@ -66,5 +82,12 @@ describe("mars browser math", () => {
     const [xBody, yBody, zBody] = marsBodyBasis(poleRaDeg, poleDecDeg, primeMeridianDeg);
     const sunInertial = bodyToInertial(sunDirectionBody(frame.solarData), xBody, yBody, zBody);
     expectNear(dot(sunInertial, basis.orbitPole), 0, 5e-3);
+  });
+
+  test("scopes the implemented planets to the naked-eye set", () => {
+    const frame = sceneFrameForTime(Date.parse("2026-04-06T00:00:00Z"), DEFAULT_SITE);
+    expect(Object.keys(frame.planets).sort()).toEqual(["earth", "jupiter", "mercury", "saturn", "venus"]);
+    expect("uranus" in frame.planets).toBe(false);
+    expect("neptune" in frame.planets).toBe(false);
   });
 });
