@@ -126,6 +126,7 @@ export interface ViewerState {
   yawDeg: number;
   pitchDeg: number;
   fovDeg: number;
+  showHud: boolean;
   showAzimuthalGrid: boolean;
   showEquatorialGrid: boolean;
   showEcliptic: boolean;

@@ -140,6 +140,32 @@ describe("mars observer app", () => {
     app.destroy();
   });
 
+  test("hud can be collapsed and restored", () => {
+    const app = createMarsObserverApp(root, {
+      stars,
+      syncUrl: false,
+    });
+    const toggleButton = root.querySelector("[data-action='toggle-hud']") as HTMLButtonElement;
+    const hudPanel = root.querySelector("[data-hud-panel]") as HTMLElement;
+
+    toggleButton.click();
+
+    let snapshot = app.getDebugSnapshot();
+    expect(snapshot.state.showHud).toBe(false);
+    expect(root.classList.contains("is-hud-hidden")).toBe(true);
+    expect(toggleButton.textContent).toBe("Show HUD");
+    expect(hudPanel.getAttribute("aria-hidden")).toBe("true");
+
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "h", bubbles: true }));
+
+    snapshot = app.getDebugSnapshot();
+    expect(snapshot.state.showHud).toBe(true);
+    expect(root.classList.contains("is-hud-hidden")).toBe(false);
+    expect(toggleButton.textContent).toBe("Hide HUD");
+    expect(hudPanel.getAttribute("aria-hidden")).toBe("false");
+    app.destroy();
+  });
+
   test("high simulation speed makes Phobos move faster than Deimos", () => {
     const app = createMarsObserverApp(root, {
       stars,

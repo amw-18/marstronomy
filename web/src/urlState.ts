@@ -1,5 +1,6 @@
 import {
   DEFAULT_FOV_DEG,
+  DEFAULT_SHOW_HUD,
   DEFAULT_SHOW_AZIMUTHAL_GRID,
   DEFAULT_SHOW_EQUATORIAL_GRID,
   DEFAULT_SHOW_ECLIPTIC,
@@ -47,6 +48,7 @@ export function readStateFromSearch(search: string): ViewerState {
   const yaw = maybeNumber(params.get("yaw"));
   const pitch = maybeNumber(params.get("pitch"));
   const fov = maybeNumber(params.get("fov"));
+  const hud = maybeBoolean(params.get("hud"));
   const legacyGridMode = parseLegacyGridMode(params.get("grid"));
   const azimuthal = maybeBoolean(params.get("azimuthal"));
   const equatorial = maybeBoolean(params.get("equatorial"));
@@ -70,6 +72,7 @@ export function readStateFromSearch(search: string): ViewerState {
     yawDeg: wrapYaw(yaw ?? DEFAULT_YAW_DEG),
     pitchDeg: clamp(pitch ?? DEFAULT_PITCH_DEG, MIN_PITCH_DEG, MAX_PITCH_DEG),
     fovDeg: clamp(fov ?? DEFAULT_FOV_DEG, MIN_FOV_DEG, MAX_FOV_DEG),
+    showHud: hud ?? DEFAULT_SHOW_HUD,
     showAzimuthalGrid,
     showEquatorialGrid,
     showEcliptic: ecliptic ?? DEFAULT_SHOW_ECLIPTIC,
@@ -87,6 +90,7 @@ export function writeStateToSearch(state: ViewerState): string {
   params.set("yaw", state.yawDeg.toFixed(2));
   params.set("pitch", state.pitchDeg.toFixed(2));
   params.set("fov", state.fovDeg.toFixed(2));
+  params.set("hud", state.showHud ? "1" : "0");
   params.set("azimuthal", state.showAzimuthalGrid ? "1" : "0");
   params.set("equatorial", state.showEquatorialGrid ? "1" : "0");
   params.set("ecliptic", state.showEcliptic ? "1" : "0");
