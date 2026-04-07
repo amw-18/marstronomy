@@ -161,6 +161,37 @@ describe("mars observer app", () => {
     app.destroy();
   });
 
+  test("solar haze can be turned off to reveal the night sky while the sun stays visible", () => {
+    const app = createMarsObserverApp(root, {
+      stars,
+      syncUrl: false,
+      initialState: {
+        simUtcMs: Date.parse("2026-04-06T12:00:00Z"),
+        yawDeg: 220,
+        pitchDeg: 25,
+      },
+    });
+    const toggleButton = root.querySelector(
+      "[data-action='toggle-solar-scattering']",
+    ) as HTMLButtonElement;
+
+    const before = app.getDebugSnapshot();
+    expect(before.frame.bodies.sun.visible).toBe(true);
+    expect(before.frame.starOpacity).toBeLessThan(0.2);
+    expect(before.frame.moonOpacity).toBeLessThan(0.5);
+
+    toggleButton.click();
+    app.advanceForTest(0);
+
+    const after = app.getDebugSnapshot();
+    expect(after.state.showSolarScattering).toBe(false);
+    expect(toggleButton.getAttribute("aria-pressed")).toBe("false");
+    expect(after.frame.bodies.sun.visible).toBe(true);
+    expect(after.frame.starOpacity).toBe(1);
+    expect(after.frame.moonOpacity).toBe(1);
+    app.destroy();
+  });
+
   test("hud can be collapsed and restored", () => {
     const app = createMarsObserverApp(root, {
       stars,

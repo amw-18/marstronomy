@@ -68,6 +68,18 @@ function mixColor(start: string, end: string, t: number): string {
   );
 }
 
+function effectiveSkySunAltitude(frame: SceneFrame, state: ViewerState): number {
+  return state.showSolarScattering ? frame.bodies.sun.altDeg : -30;
+}
+
+function effectiveStarOpacity(frame: SceneFrame, state: ViewerState): number {
+  return state.showSolarScattering ? frame.starOpacity : 1;
+}
+
+function effectiveMoonOpacity(frame: SceneFrame, state: ViewerState): number {
+  return state.showSolarScattering ? frame.moonOpacity : 1;
+}
+
 function buildCameraBasis(state: ViewerState): { forward: Vec3; right: Vec3; up: Vec3 } {
   const yaw = (state.yawDeg * Math.PI) / 180;
   const pitch = (state.pitchDeg * Math.PI) / 180;
@@ -377,7 +389,7 @@ function drawConstellationLines(
     return new Set<string>();
   }
 
-  const lineAlpha = clamp(frame.starOpacity * 0.58, 0.18, 0.72);
+  const lineAlpha = clamp(effectiveStarOpacity(frame, state) * 0.58, 0.18, 0.72);
   const drawn = new Set<string>();
 
   for (const constellation of constellations) {
@@ -416,7 +428,7 @@ function drawConstellationLabels(
     return;
   }
 
-  const labelAlpha = clamp(frame.starOpacity * 0.76, 0.24, 0.9);
+  const labelAlpha = clamp(effectiveStarOpacity(frame, state) * 0.76, 0.24, 0.9);
 
   for (const constellation of constellations) {
     if (!drawn.has(constellation.abbr)) {
@@ -770,6 +782,7 @@ function drawStars(
   height: number,
 ): number {
   const fovScale = 75 / state.fovDeg;
+  const starOpacity = effectiveStarOpacity(frame, state);
   let visibleCount = 0;
   for (const star of stars) {
     const local = inertialToLocalVector(star.eci, frame.inertialToLocalRows);
@@ -784,7 +797,7 @@ function drawStars(
       continue;
     }
     const size = markerSizeForMagnitude(star.m) * Math.pow(fovScale, 0.58);
-    const alpha = clamp(frame.starOpacity * (0.35 + size / 8), 0.06, 1);
+    const alpha = clamp(starOpacity * (0.35 + size / 8), 0.06, 1);
     drawPointSource(ctx, projected.x, projected.y, size, star.rgb, alpha);
     visibleCount += 1;
   }
@@ -799,6 +812,8 @@ function drawMovingBodies(
   height: number,
 ): RenderStats {
   const fovScale = 75 / state.fovDeg;
+  const starOpacity = effectiveStarOpacity(frame, state);
+  const moonOpacity = effectiveMoonOpacity(frame, state);
   const bodies = [
     frame.bodies.sun,
     ...Object.values(frame.planets),
@@ -824,10 +839,10 @@ function drawMovingBodies(
     } else if (body.kind !== "phobos" && body.kind !== "deimos") {
       const magnitude = body.apparentMagnitude ?? 2;
       const size = markerSizeForMagnitude(magnitude) * Math.pow(fovScale, 0.58);
-      const opacity = clamp(frame.starOpacity * (0.38 + size / 8.5), 0.08, 1);
+      const opacity = clamp(starOpacity * (0.38 + size / 8.5), 0.08, 1);
       drawPointSource(ctx, projected.x, projected.y, size, mixColor(body.color, "#f7f9ff", 0.72), opacity);
     } else {
-      const opacity = frame.moonOpacity;
+      const opacity = moonOpacity;
       const radius = Math.max(2.8, body.symbolSizePx * 0.5 * fovScale);
       if (body.resolvedInMainView) {
         drawResolvedMoonGlyph(ctx, body, projected.x, projected.y, radius, opacity);
@@ -925,7 +940,7 @@ export class SkyRenderer {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, width, height);
 
-    drawSkyBackground(ctx, width, height, frame.bodies.sun.altDeg);
+    drawSkyBackground(ctx, width, height, effectiveSkySunAltitude(frame, state));
     drawGridOverlay(ctx, frame, state, width, height);
     drawHorizon(ctx, state, width, height);
     drawCardinalMarkers(ctx, state, width, height);

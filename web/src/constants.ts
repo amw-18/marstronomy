@@ -18,6 +18,7 @@ export const MIN_PITCH_DEG = -10;
 export const MAX_PITCH_DEG = 89.5;
 export const RENDER_PIXEL_RATIO_CAP = 2;
 export const DEFAULT_SHOW_HUD = true;
+export const DEFAULT_SHOW_SOLAR_SCATTERING = true;
 export const DEFAULT_SHOW_AZIMUTHAL_GRID = true;
 export const DEFAULT_SHOW_EQUATORIAL_GRID = false;
 export const DEFAULT_SHOW_ECLIPTIC = true;
@@ -40,6 +41,7 @@ export const DEFAULT_VIEWER_STATE = (): ViewerState => ({
   pitchDeg: DEFAULT_PITCH_DEG,
   fovDeg: DEFAULT_FOV_DEG,
   showHud: DEFAULT_SHOW_HUD,
+  showSolarScattering: DEFAULT_SHOW_SOLAR_SCATTERING,
   showAzimuthalGrid: DEFAULT_SHOW_AZIMUTHAL_GRID,
   showEquatorialGrid: DEFAULT_SHOW_EQUATORIAL_GRID,
   showEcliptic: DEFAULT_SHOW_ECLIPTIC,

@@ -34,6 +34,7 @@ interface ElementRefs {
   canvas: HTMLCanvasElement;
   hudPanels: HTMLElement[];
   hudToggleButton: HTMLButtonElement;
+  solarScatteringButton: HTMLButtonElement;
   utcInput: HTMLInputElement;
   marsClockValue: HTMLElement;
   speedValue: HTMLElement;
@@ -212,6 +213,14 @@ export class MarsObserverApp {
           <button class="speed-chip" data-grid="equatorial" type="button">Equatorial</button>
           <button class="speed-chip" data-action="toggle-ecliptic" type="button">Ecliptic</button>
           <button class="speed-chip" data-action="toggle-constellations" type="button">Constellations</button>
+          <button
+            class="speed-chip"
+            data-action="toggle-solar-scattering"
+            type="button"
+            title="Keep or remove the Sun's atmospheric daylight wash"
+          >
+            Solar haze
+          </button>
         </div>
       </section>
       <section class="hud-panel hud-panel--moon" data-hud-panel>
@@ -241,6 +250,7 @@ export class MarsObserverApp {
       canvas: query<HTMLCanvasElement>("canvas.viewer-canvas"),
       hudPanels: Array.from(this.root.querySelectorAll<HTMLElement>("[data-hud-panel]")),
       hudToggleButton: query<HTMLButtonElement>("[data-action='toggle-hud']"),
+      solarScatteringButton: query<HTMLButtonElement>("[data-action='toggle-solar-scattering']"),
       utcInput: query<HTMLInputElement>("input.utc-input"),
       marsClockValue: query<HTMLElement>("[data-role='mars-clock']"),
       speedValue: query<HTMLElement>("[data-role='speed-value']"),
@@ -364,6 +374,12 @@ export class MarsObserverApp {
       this.scheduleUrlSync();
     });
 
+    this.elements.solarScatteringButton.addEventListener("click", () => {
+      this.state.showSolarScattering = !this.state.showSolarScattering;
+      this.requestRender();
+      this.scheduleUrlSync();
+    });
+
     window.addEventListener("mousemove", this.onMouseMove);
     window.addEventListener("mouseup", this.onMouseUp);
     window.addEventListener("resize", this.onResize);
@@ -401,6 +417,11 @@ export class MarsObserverApp {
     this.elements.eclipticButton.setAttribute("aria-pressed", String(this.state.showEcliptic));
     this.elements.constellationButton.classList.toggle("is-active", this.state.showConstellations);
     this.elements.constellationButton.setAttribute("aria-pressed", String(this.state.showConstellations));
+    this.elements.solarScatteringButton.classList.toggle("is-active", this.state.showSolarScattering);
+    this.elements.solarScatteringButton.setAttribute("aria-pressed", String(this.state.showSolarScattering));
+    this.elements.solarScatteringButton.title = this.state.showSolarScattering
+      ? "Remove the Sun's atmospheric daylight wash and reveal the night sky"
+      : "Restore the Sun's atmospheric daylight wash";
 
     const updateMoonMeta = (body: SceneFrame["bodies"]["phobos"] | SceneFrame["bodies"]["deimos"], element: HTMLElement) => {
       const illumination = Math.round((body.illuminatedFraction ?? 0) * 100);
@@ -423,7 +444,14 @@ export class MarsObserverApp {
   }
 
   private renderNow(): void {
-    this.frame = sceneFrameForTime(this.state.simUtcMs);
+    const frame = sceneFrameForTime(this.state.simUtcMs);
+    this.frame = this.state.showSolarScattering
+      ? frame
+      : {
+          ...frame,
+          starOpacity: 1,
+          moonOpacity: 1,
+        };
     this.renderer.resize(RENDER_PIXEL_RATIO_CAP);
     this.renderStats = this.renderer.render(this.frame, this.stars, this.constellations, this.state);
     renderMoonInset(this.elements.phobosCanvas, this.frame.bodies.phobos);

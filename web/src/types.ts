@@ -152,6 +152,7 @@ export interface ViewerState {
   pitchDeg: number;
   fovDeg: number;
   showHud: boolean;
+  showSolarScattering: boolean;
   showAzimuthalGrid: boolean;
   showEquatorialGrid: boolean;
   showEcliptic: boolean;

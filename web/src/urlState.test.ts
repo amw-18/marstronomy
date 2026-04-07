@@ -13,6 +13,7 @@ describe("viewer url state", () => {
       pitchDeg: 18.25,
       fovDeg: 68.5,
       showHud: false,
+      showSolarScattering: false,
       showAzimuthalGrid: true,
       showEquatorialGrid: true,
       showEcliptic: false,
@@ -26,6 +27,7 @@ describe("viewer url state", () => {
     expect(roundTripped.pitchDeg).toBeCloseTo(state.pitchDeg, 2);
     expect(roundTripped.fovDeg).toBeCloseTo(state.fovDeg, 2);
     expect(roundTripped.showHud).toBe(false);
+    expect(roundTripped.showSolarScattering).toBe(false);
     expect(roundTripped.showAzimuthalGrid).toBe(true);
     expect(roundTripped.showEquatorialGrid).toBe(true);
     expect(roundTripped.showEcliptic).toBe(false);
@@ -33,8 +35,9 @@ describe("viewer url state", () => {
   });
 
   test("maps legacy shared grid mode urls onto the new toggles", () => {
-    const parsed = readStateFromSearch("?grid=equatorial&ecliptic=1&hud=0&constellations=1");
+    const parsed = readStateFromSearch("?grid=equatorial&ecliptic=1&hud=0&constellations=1&scattering=0");
     expect(parsed.showHud).toBe(false);
+    expect(parsed.showSolarScattering).toBe(false);
     expect(parsed.showAzimuthalGrid).toBe(false);
     expect(parsed.showEquatorialGrid).toBe(true);
     expect(parsed.showEcliptic).toBe(true);
