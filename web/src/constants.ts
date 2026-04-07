@@ -21,6 +21,7 @@ export const DEFAULT_SHOW_HUD = true;
 export const DEFAULT_SHOW_AZIMUTHAL_GRID = true;
 export const DEFAULT_SHOW_EQUATORIAL_GRID = false;
 export const DEFAULT_SHOW_ECLIPTIC = true;
+export const DEFAULT_SHOW_CONSTELLATIONS = false;
 
 export const SPEED_PRESETS = [0, 1, 10, 60, 300, 1800, 7200] as const;
 export const PLANET_KINDS: PlanetKind[] = ["mercury", "venus", "earth", "jupiter", "saturn"];
@@ -42,6 +43,7 @@ export const DEFAULT_VIEWER_STATE = (): ViewerState => ({
   showAzimuthalGrid: DEFAULT_SHOW_AZIMUTHAL_GRID,
   showEquatorialGrid: DEFAULT_SHOW_EQUATORIAL_GRID,
   showEcliptic: DEFAULT_SHOW_ECLIPTIC,
+  showConstellations: DEFAULT_SHOW_CONSTELLATIONS,
 });
 
 export const SUN_COLOR = "#ffd54a";

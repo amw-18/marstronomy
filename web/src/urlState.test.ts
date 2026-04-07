@@ -16,6 +16,7 @@ describe("viewer url state", () => {
       showAzimuthalGrid: true,
       showEquatorialGrid: true,
       showEcliptic: false,
+      showConstellations: true,
     };
 
     const roundTripped = readStateFromSearch(writeStateToSearch(state));
@@ -28,13 +29,15 @@ describe("viewer url state", () => {
     expect(roundTripped.showAzimuthalGrid).toBe(true);
     expect(roundTripped.showEquatorialGrid).toBe(true);
     expect(roundTripped.showEcliptic).toBe(false);
+    expect(roundTripped.showConstellations).toBe(true);
   });
 
   test("maps legacy shared grid mode urls onto the new toggles", () => {
-    const parsed = readStateFromSearch("?grid=equatorial&ecliptic=1&hud=0");
+    const parsed = readStateFromSearch("?grid=equatorial&ecliptic=1&hud=0&constellations=1");
     expect(parsed.showHud).toBe(false);
     expect(parsed.showAzimuthalGrid).toBe(false);
     expect(parsed.showEquatorialGrid).toBe(true);
     expect(parsed.showEcliptic).toBe(true);
+    expect(parsed.showConstellations).toBe(true);
   });
 });

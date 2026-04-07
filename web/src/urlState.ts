@@ -2,8 +2,9 @@ import {
   DEFAULT_FOV_DEG,
   DEFAULT_SHOW_HUD,
   DEFAULT_SHOW_AZIMUTHAL_GRID,
-  DEFAULT_SHOW_EQUATORIAL_GRID,
+  DEFAULT_SHOW_CONSTELLATIONS,
   DEFAULT_SHOW_ECLIPTIC,
+  DEFAULT_SHOW_EQUATORIAL_GRID,
   DEFAULT_PITCH_DEG,
   DEFAULT_START_UTC_ISO,
   DEFAULT_VIEWER_STATE,
@@ -53,6 +54,7 @@ export function readStateFromSearch(search: string): ViewerState {
   const azimuthal = maybeBoolean(params.get("azimuthal"));
   const equatorial = maybeBoolean(params.get("equatorial"));
   const ecliptic = maybeBoolean(params.get("ecliptic"));
+  const constellations = maybeBoolean(params.get("constellations"));
 
   const showAzimuthalGrid =
     azimuthal ??
@@ -76,6 +78,7 @@ export function readStateFromSearch(search: string): ViewerState {
     showAzimuthalGrid,
     showEquatorialGrid,
     showEcliptic: ecliptic ?? DEFAULT_SHOW_ECLIPTIC,
+    showConstellations: constellations ?? DEFAULT_SHOW_CONSTELLATIONS,
   };
 }
 
@@ -94,5 +97,6 @@ export function writeStateToSearch(state: ViewerState): string {
   params.set("azimuthal", state.showAzimuthalGrid ? "1" : "0");
   params.set("equatorial", state.showEquatorialGrid ? "1" : "0");
   params.set("ecliptic", state.showEcliptic ? "1" : "0");
+  params.set("constellations", state.showConstellations ? "1" : "0");
   return `?${params.toString()}`;
 }
