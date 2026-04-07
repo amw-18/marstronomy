@@ -140,6 +140,27 @@ describe("mars observer app", () => {
     app.destroy();
   });
 
+  test("constellation overlay can be toggled on", () => {
+    const app = createMarsObserverApp(root, {
+      stars,
+      syncUrl: false,
+    });
+    const constellationButton = root.querySelector(
+      "[data-action='toggle-constellations']",
+    ) as HTMLButtonElement;
+
+    expect(app.getDebugSnapshot().renderStats.constellationsDrawn).toBe(0);
+
+    constellationButton.click();
+    app.advanceForTest(0);
+
+    const next = app.getDebugSnapshot();
+    expect(next.state.showConstellations).toBe(true);
+    expect(constellationButton.getAttribute("aria-pressed")).toBe("true");
+    expect(next.renderStats.constellationsDrawn).toBeGreaterThan(0);
+    app.destroy();
+  });
+
   test("hud can be collapsed and restored", () => {
     const app = createMarsObserverApp(root, {
       stars,
@@ -163,6 +184,27 @@ describe("mars observer app", () => {
     expect(root.classList.contains("is-hud-hidden")).toBe(false);
     expect(toggleButton.textContent).toBe("Hide HUD");
     expect(hudPanel.getAttribute("aria-hidden")).toBe("false");
+    app.destroy();
+  });
+
+  test("hiding the hud does not disable constellation rendering", () => {
+    const app = createMarsObserverApp(root, {
+      stars,
+      syncUrl: false,
+      initialState: {
+        showConstellations: true,
+      },
+    });
+    const toggleButton = root.querySelector("[data-action='toggle-hud']") as HTMLButtonElement;
+
+    expect(app.getDebugSnapshot().renderStats.constellationsDrawn).toBeGreaterThan(0);
+
+    toggleButton.click();
+
+    const snapshot = app.getDebugSnapshot();
+    expect(snapshot.state.showHud).toBe(false);
+    expect(snapshot.state.showConstellations).toBe(true);
+    expect(snapshot.renderStats.constellationsDrawn).toBeGreaterThan(0);
     app.destroy();
   });
 

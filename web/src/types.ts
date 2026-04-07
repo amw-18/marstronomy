@@ -11,6 +11,31 @@ export interface RuntimeStar {
   eci: Vec3;
 }
 
+export interface ConstellationDefinition {
+  abbr: string;
+  name: string;
+  labelHr: number;
+  labelOffsetPx: Point2;
+  segments: Array<[number, number]>;
+}
+
+export interface RuntimeConstellationSegment {
+  startHr: number;
+  endHr: number;
+  startEci: Vec3;
+  endEci: Vec3;
+}
+
+export interface RuntimeConstellation {
+  abbr: string;
+  name: string;
+  labelHr: number;
+  labelOffsetPx: Point2;
+  labelEci: Vec3;
+  centroidEci: Vec3;
+  segments: RuntimeConstellationSegment[];
+}
+
 export interface Site {
   name: string;
   latitudeDeg: number;
@@ -130,10 +155,12 @@ export interface ViewerState {
   showAzimuthalGrid: boolean;
   showEquatorialGrid: boolean;
   showEcliptic: boolean;
+  showConstellations: boolean;
 }
 
 export interface RenderStats {
   visibleStarCount: number;
+  constellationsDrawn: number;
   bodiesDrawn: number;
   sunVisible: boolean;
   phobosVisible: boolean;

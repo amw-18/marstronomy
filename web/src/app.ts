@@ -11,9 +11,17 @@ import {
   SPEED_PRESETS,
   STEP_BUTTONS,
 } from "./constants";
+import { resolveConstellations } from "./constellations";
 import { formatMarsClock, formatUtcInputValue, parseUtcInputValue, sceneFrameForTime, wrapDegrees } from "./marsMath";
 import { SkyRenderer, renderMoonInset } from "./render";
-import type { AppDebugSnapshot, RenderStats, RuntimeStar, SceneFrame, ViewerState } from "./types";
+import type {
+  AppDebugSnapshot,
+  RenderStats,
+  RuntimeConstellation,
+  RuntimeStar,
+  SceneFrame,
+  ViewerState,
+} from "./types";
 import { writeStateToSearch } from "./urlState";
 
 interface CreateAppOptions {
@@ -35,6 +43,7 @@ interface ElementRefs {
   stepButtons: HTMLButtonElement[];
   gridButtons: HTMLButtonElement[];
   eclipticButton: HTMLButtonElement;
+  constellationButton: HTMLButtonElement;
   phobosCanvas: HTMLCanvasElement;
   phobosMeta: HTMLElement;
   deimosCanvas: HTMLCanvasElement;
@@ -44,6 +53,7 @@ interface ElementRefs {
 export class MarsObserverApp {
   private readonly root: HTMLElement;
   private readonly stars: RuntimeStar[];
+  private readonly constellations: RuntimeConstellation[];
   private readonly elements: ElementRefs;
   private readonly renderer: SkyRenderer;
   private readonly syncUrl: boolean;
@@ -52,6 +62,7 @@ export class MarsObserverApp {
   private frame: SceneFrame;
   private renderStats: RenderStats = {
     visibleStarCount: 0,
+    constellationsDrawn: 0,
     bodiesDrawn: 0,
     sunVisible: false,
     phobosVisible: false,
@@ -145,6 +156,7 @@ export class MarsObserverApp {
 
     this.elements = this.collectElements();
     this.renderer = new SkyRenderer(this.elements.canvas);
+    this.constellations = resolveConstellations(this.stars);
     this.frame = sceneFrameForTime(this.state.simUtcMs);
 
     this.bindEvents();
@@ -199,6 +211,7 @@ export class MarsObserverApp {
           <button class="speed-chip" data-grid="azimuthal" type="button">Azimuthal</button>
           <button class="speed-chip" data-grid="equatorial" type="button">Equatorial</button>
           <button class="speed-chip" data-action="toggle-ecliptic" type="button">Ecliptic</button>
+          <button class="speed-chip" data-action="toggle-constellations" type="button">Constellations</button>
         </div>
       </section>
       <section class="hud-panel hud-panel--moon" data-hud-panel>
@@ -237,6 +250,7 @@ export class MarsObserverApp {
       stepButtons: Array.from(this.root.querySelectorAll<HTMLButtonElement>("[data-step]")),
       gridButtons: Array.from(this.root.querySelectorAll<HTMLButtonElement>("[data-grid]")),
       eclipticButton: query<HTMLButtonElement>("[data-action='toggle-ecliptic']"),
+      constellationButton: query<HTMLButtonElement>("[data-action='toggle-constellations']"),
       phobosCanvas: query<HTMLCanvasElement>("[data-canvas='phobos']"),
       phobosMeta: query<HTMLElement>("[data-meta='phobos']"),
       deimosCanvas: query<HTMLCanvasElement>("[data-canvas='deimos']"),
@@ -344,6 +358,12 @@ export class MarsObserverApp {
       this.scheduleUrlSync();
     });
 
+    this.elements.constellationButton.addEventListener("click", () => {
+      this.state.showConstellations = !this.state.showConstellations;
+      this.requestRender();
+      this.scheduleUrlSync();
+    });
+
     window.addEventListener("mousemove", this.onMouseMove);
     window.addEventListener("mouseup", this.onMouseUp);
     window.addEventListener("resize", this.onResize);
@@ -379,6 +399,8 @@ export class MarsObserverApp {
 
     this.elements.eclipticButton.classList.toggle("is-active", this.state.showEcliptic);
     this.elements.eclipticButton.setAttribute("aria-pressed", String(this.state.showEcliptic));
+    this.elements.constellationButton.classList.toggle("is-active", this.state.showConstellations);
+    this.elements.constellationButton.setAttribute("aria-pressed", String(this.state.showConstellations));
 
     const updateMoonMeta = (body: SceneFrame["bodies"]["phobos"] | SceneFrame["bodies"]["deimos"], element: HTMLElement) => {
       const illumination = Math.round((body.illuminatedFraction ?? 0) * 100);
@@ -403,7 +425,7 @@ export class MarsObserverApp {
   private renderNow(): void {
     this.frame = sceneFrameForTime(this.state.simUtcMs);
     this.renderer.resize(RENDER_PIXEL_RATIO_CAP);
-    this.renderStats = this.renderer.render(this.frame, this.stars, this.state);
+    this.renderStats = this.renderer.render(this.frame, this.stars, this.constellations, this.state);
     renderMoonInset(this.elements.phobosCanvas, this.frame.bodies.phobos);
     renderMoonInset(this.elements.deimosCanvas, this.frame.bodies.deimos);
     this.updateHud();

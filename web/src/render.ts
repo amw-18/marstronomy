@@ -15,7 +15,16 @@ import {
   vectorFromCelestialBasis,
   vectorNorm,
 } from "./marsMath";
-import type { MovingBody, Point2, RenderStats, RuntimeStar, SceneFrame, Vec3, ViewerState } from "./types";
+import type {
+  MovingBody,
+  Point2,
+  RenderStats,
+  RuntimeConstellation,
+  RuntimeStar,
+  SceneFrame,
+  Vec3,
+  ViewerState,
+} from "./types";
 
 interface ProjectedPoint {
   x: number;
@@ -123,7 +132,7 @@ function strokeProjectedPath(
   width: number,
   height: number,
   style: ProjectedPathStyle,
-): void {
+): boolean {
   ctx.save();
   ctx.strokeStyle = style.strokeStyle;
   ctx.lineWidth = style.lineWidth;
@@ -133,11 +142,13 @@ function strokeProjectedPath(
   }
 
   let drawing = false;
+  let drewStroke = false;
   for (const localVector of localVectors) {
     const projected = projectPathPoint(localVector, state, width, height);
     if (!projected) {
       if (drawing) {
         ctx.stroke();
+        drewStroke = true;
         drawing = false;
       }
       continue;
@@ -155,8 +166,10 @@ function strokeProjectedPath(
 
   if (drawing) {
     ctx.stroke();
+    drewStroke = true;
   }
   ctx.restore();
+  return drewStroke;
 }
 
 function sampleAzimuthalAltitudeLine(altDeg: number, stepDeg = 4): Vec3[] {
@@ -333,6 +346,122 @@ function drawGridOverlay(
   }
 }
 
+function sampleInertialSegment(
+  startEci: Vec3,
+  endEci: Vec3,
+  inertialToLocalRows: [Vec3, Vec3, Vec3],
+  steps = 6,
+): Vec3[] {
+  const points: Vec3[] = [];
+  for (let index = 0; index <= steps; index += 1) {
+    const t = index / steps;
+    const blended = normalizeVector([
+      lerp(startEci[0], endEci[0], t),
+      lerp(startEci[1], endEci[1], t),
+      lerp(startEci[2], endEci[2], t),
+    ]);
+    points.push(inertialToLocalVector(blended, inertialToLocalRows));
+  }
+  return points;
+}
+
+function drawConstellationLines(
+  ctx: CanvasRenderingContext2D,
+  constellations: RuntimeConstellation[],
+  frame: SceneFrame,
+  state: ViewerState,
+  width: number,
+  height: number,
+): Set<string> {
+  if (!state.showConstellations) {
+    return new Set<string>();
+  }
+
+  const lineAlpha = clamp(frame.starOpacity * 0.58, 0.18, 0.72);
+  const drawn = new Set<string>();
+
+  for (const constellation of constellations) {
+    let drewAnySegment = false;
+    for (const segment of constellation.segments) {
+      const localVectors = sampleInertialSegment(
+        segment.startEci,
+        segment.endEci,
+        frame.inertialToLocalRows,
+      );
+      drewAnySegment =
+        strokeProjectedPath(ctx, localVectors, state, width, height, {
+          strokeStyle: "rgba(176, 197, 228, 0.82)",
+          lineWidth: 1.1,
+          alpha: lineAlpha,
+        }) || drewAnySegment;
+    }
+    if (drewAnySegment) {
+      drawn.add(constellation.abbr);
+    }
+  }
+
+  return drawn;
+}
+
+function drawConstellationLabels(
+  ctx: CanvasRenderingContext2D,
+  constellations: RuntimeConstellation[],
+  drawn: Set<string>,
+  frame: SceneFrame,
+  state: ViewerState,
+  width: number,
+  height: number,
+): void {
+  if (drawn.size === 0) {
+    return;
+  }
+
+  const labelAlpha = clamp(frame.starOpacity * 0.76, 0.24, 0.9);
+
+  for (const constellation of constellations) {
+    if (!drawn.has(constellation.abbr)) {
+      continue;
+    }
+
+    const anchorLocal = inertialToLocalVector(constellation.labelEci, frame.inertialToLocalRows);
+    if (anchorLocal[2] <= SKY_VISIBILITY_EPSILON) {
+      continue;
+    }
+
+    const anchor = projectLocalVector(anchorLocal, state, width, height);
+    if (!anchor) {
+      continue;
+    }
+    if (anchor.x < -60 || anchor.x > width + 60 || anchor.y < -60 || anchor.y > height + 60) {
+      continue;
+    }
+
+    let offsetX = constellation.labelOffsetPx[0];
+    let offsetY = constellation.labelOffsetPx[1];
+    const centroidLocal = inertialToLocalVector(constellation.centroidEci, frame.inertialToLocalRows);
+    const centroid = projectLocalVector(centroidLocal, state, width, height);
+    if (centroid) {
+      const deltaX = anchor.x - centroid.x;
+      const deltaY = anchor.y - centroid.y;
+      const magnitude = Math.hypot(deltaX, deltaY);
+      if (magnitude > 4) {
+        offsetX = (deltaX / magnitude) * 18;
+        offsetY = (deltaY / magnitude) * 18;
+      }
+    }
+
+    drawTextHalo(
+      ctx,
+      constellation.name,
+      anchor.x + offsetX,
+      anchor.y + offsetY,
+      "#dde7fb",
+      "600 11px 'Trebuchet MS', sans-serif",
+      labelAlpha,
+    );
+  }
+}
+
 function drawTextHalo(
   ctx: CanvasRenderingContext2D,
   text: string,
@@ -340,11 +469,13 @@ function drawTextHalo(
   y: number,
   color: string,
   font: string,
+  alpha = 1,
 ): void {
   ctx.save();
   ctx.font = font;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
+  ctx.globalAlpha = alpha;
   ctx.strokeStyle = "rgba(5, 8, 16, 0.86)";
   ctx.lineWidth = 4;
   ctx.strokeText(text, x, y);
@@ -724,6 +855,7 @@ function drawMovingBodies(
 
   return {
     visibleStarCount: 0,
+    constellationsDrawn: 0,
     bodiesDrawn,
     sunVisible: frame.bodies.sun.visible,
     phobosVisible: frame.bodies.phobos.visible,
@@ -779,7 +911,12 @@ export class SkyRenderer {
     }
   }
 
-  render(frame: SceneFrame, stars: RuntimeStar[], state: ViewerState): RenderStats {
+  render(
+    frame: SceneFrame,
+    stars: RuntimeStar[],
+    constellations: RuntimeConstellation[],
+    state: ViewerState,
+  ): RenderStats {
     this.resize();
     const ctx = this.getContext();
     const width = this.canvas.width;
@@ -792,11 +929,14 @@ export class SkyRenderer {
     drawGridOverlay(ctx, frame, state, width, height);
     drawHorizon(ctx, state, width, height);
     drawCardinalMarkers(ctx, state, width, height);
+    const drawnConstellations = drawConstellationLines(ctx, constellations, frame, state, width, height);
     const visibleStarCount = drawStars(ctx, stars, frame, state, width, height);
+    drawConstellationLabels(ctx, constellations, drawnConstellations, frame, state, width, height);
     const bodyStats = drawMovingBodies(ctx, frame, state, width, height);
 
     return {
       visibleStarCount,
+      constellationsDrawn: drawnConstellations.size,
       bodiesDrawn: bodyStats.bodiesDrawn,
       sunVisible: bodyStats.sunVisible,
       phobosVisible: bodyStats.phobosVisible,
