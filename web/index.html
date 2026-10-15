@@ -6,10 +6,42 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0"
     />
-    <title>Mars Observer Viewer</title>
+    <title>Marstronomy — Explore the Sky from Mars</title>
+    <meta name="description" content="Explore the sky from Olympus Mons on Mars. Watch the stars, Sun, Phobos, and Deimos move through time in an interactive astronomy simulation." />
+    <link rel="canonical" href="https://marstronomy.amwal.space/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Marstronomy" />
+    <meta property="og:title" content="Marstronomy — Explore the Sky from Mars" />
+    <meta property="og:description" content="An interactive view of the stars, Sun, and moons from Olympus Mons on Mars." />
+    <meta property="og:url" content="https://marstronomy.amwal.space/" />
+    <meta property="og:image" content="https://marstronomy.amwal.space/social-preview.png" />
+    <meta property="og:image:alt" content="Marstronomy — The sky, from Mars" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Marstronomy — Explore the Sky from Mars" />
+    <meta name="twitter:description" content="An interactive view of the stars, Sun, and moons from Olympus Mons on Mars." />
+    <meta name="twitter:image" content="https://marstronomy.amwal.space/social-preview.png" />
+    <meta name="twitter:image:alt" content="Marstronomy — The sky, from Mars" />
   </head>
   <body>
-    <div id="app"></div>
+    <main id="app">
+      <div class="loading-state">
+        <h1>Explore the sky from Mars</h1>
+        <p>Preparing the stars, Sun, Phobos, and Deimos for Olympus Mons.</p>
+        <noscript>The interactive viewer needs JavaScript. You can still read about the project below.</noscript>
+      </div>
+    </main>
+    <details class="project-about">
+      <summary>About marstronomy</summary>
+      <div class="project-about-content">
+        <h2>The sky, from Mars</h2>
+        <p>Marstronomy is an interactive astronomy experiment by <a href="https://www.amwal.space/">Amwal</a>. It explores what the sky looks like from Olympus Mons on the Martian surface.</p>
+        <p>Watch the stars, Sun, Phobos, and Deimos move through time. Drag to look around, scroll to change your field of view, and use the time and speed controls to explore a Martian day. Toggle the coordinate grids, constellations, and solar haze to see different aspects of the sky.</p>
+        <p>The viewer is built for exploration. The moons use simplified orbits and visual approximations, rather than precision ephemerides.</p>
+        <p><a href="https://www.amwal.space/projects/#marstronomy">About this project</a> · <a href="https://github.com/amw-18/marstronomy">Source on GitHub</a></p>
+      </div>
+    </details>
     <script type="module" src="/src/main.ts"></script>
   </body>
   </html>
